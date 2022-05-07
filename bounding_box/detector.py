@@ -2,21 +2,20 @@ import re
 from os import *
 from typing import List, Dict, Tuple
 
+import show_image
 import numpy as np
 from PIL import Image
-from matplotlib import pyplot as plt
-from matplotlib.image import AxesImage
-
-im: AxesImage = None
+from PIL.ImageDraw import ImageDraw
 
 
-def matplotlib_imshow(npimg):
-    global im
-    if im is None:
-        im = plt.imshow(npimg)
-    else:
-        im.set_array(npimg)
-    plt.pause(.1)
+def draw_bounding_box(image: Image.Image,
+                      box: Tuple[Tuple[float, float], Tuple[float, float]],
+                      colour: Tuple[int, int, int, int] = (0, 255, 0, 0), ):
+    draw = ImageDraw(image)
+    xy = np.asarray(box)
+    xy *= image.size
+
+    draw.rectangle(((xy[0, 0], xy[0, 1]), (xy[1, 0], xy[1, 1])), outline=colour)
 
 
 def detect_boxes(args: List[str]) -> None:
@@ -38,9 +37,8 @@ def detect_boxes(args: List[str]) -> None:
 
         img = read_image(f)
         box = detect(img)
-        if box is None:
-            print(f"Image in {relative_path} seems to be broken. No bounding box detected. Skip.")
-            continue
+        show_image.show_image(img)
+
         matches = expr.findall(f)
         product_id = matches[0][expr.groupindex['product'] - 1]
         angle = matches[0][expr.groupindex['angle'] - 1]
