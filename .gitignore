@@ -1,5 +1,9 @@
 **/.idea
 **/__pycache__
 bounding_boxes.csv
-/VGG16-pretrained-no-classification.pth
-/VGG16-pretrained-original.pth
+/bounding_box/models/VGG16-pretrained-no-classification.pth
+/bounding_box/models/VGG16-pretrained-original.pth
+/bounding_box/models/
+/models/
+*.pt
+*.pth
