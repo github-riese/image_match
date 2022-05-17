@@ -1,7 +1,6 @@
 from math import ceil
 from typing import Tuple
 
-import numpy
 import numpy as np
 from PIL import Image
 from PIL.ImageDraw import ImageDraw
@@ -33,6 +32,9 @@ class ImageDisplay:
         rows = int(ceil(count / columns))
         grid = self._make_grid(images, columns, rows, width, height, line_width=grid_linewidth)
         self.show_image(grid)
+
+    def save(self, filename: str):
+        plt.savefig(filename)
 
     @staticmethod
     def _make_grid(images: np.ndarray, columns: int, rows: int, im_width: int, im_height: int,

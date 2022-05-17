@@ -2,11 +2,12 @@ import os
 
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 import torch
-import torchinfo
+from keras.optimizer_v2.nadam import Nadam
 from matplotlib import pyplot as plt
-from torch.nn import Module, BCELoss
-from torch.optim import Adam
+from tensorflow.python.keras.callbacks import History
+from torch.nn import Module
 from torch.utils.data import DataLoader
 
 from augmented_image_loader import AugmentedImageLoader
@@ -15,9 +16,6 @@ from generator.tf_generator import ImageGenerator
 from image_display import ImageDisplay
 from image_loader import ImageLoader
 from tf_dataloader_wrapper import dataloader_wrapper
-from trainer import Trainer
-
-import tensorflow as tf
 
 
 def generate_default_view(args: list):
@@ -30,30 +28,45 @@ def generate_default_view(args: list):
     validation_dataset = dataset.get_reserved_data()
     validation_loader = DataLoader(validation_dataset, batch_size=10, shuffle=False)
 
-    if os.path.exists("models/tf_model.tf"):
-        model = tf.keras.models.load_model("models/tf_model.tf")
+    if os.path.exists("models/tf_model_conv.tf"):
+        model = tf.keras.models.load_model("models/tf_model_conv.tf")
     else:
         model = ImageGenerator().get_model()
-        model.compile(optimizer='adam', loss='binary_crossentropy')
+    model.compile(optimizer=Nadam(0.01), loss='binary_crossentropy')
     model.summary()
 
-    v_iter = iter(validation_dataset)
+    #    validation_ids = list(enumerate(validation_dataset))
+    #    random.shuffle(validation_ids)
+    validation_ids = [5, 15, 25, 35, 45]
+
+    sources = np.zeros((0, 80, 80, 3))
     validate = tf.zeros((0, 80, 80, 3))
     expect = np.zeros((0, 80, 80, 3))
 
     for n in range(5):
-        x, y = next(v_iter)
+        index = validation_ids[n]
+        x, y = validation_dataset.__getitem__(index)
         validate = tf.concat([validate, x.reshape((1, 80, 80, 3))], axis=0)
+        sources = np.concatenate([sources, x.reshape((1, 80, 80, 3))], axis=0)
         expect = np.concatenate([expect, y.reshape((1, 80, 80, 3))], axis=0)
     display = ImageDisplay()
 
-    batch_size = 5
-    for n in range(200):
-        model.fit_generator(dataloader_wrapper(dataset, True, batch_size), len(dataset)/batch_size, epochs=5)
+    batch_size = 15
+    total_epochs = 0
+    for n in range(20):
+        print(f"meta-epoch {n + 1}...")
+        epochs = min(n * 2 + 1, 10)
+        history: History = model.fit(dataloader_wrapper(dataset, True, batch_size),
+                                     steps_per_epoch=len(dataset) / batch_size,
+                                     epochs=epochs, validation_freq=1, verbose=1)
         bamm = model.predict(tf.convert_to_tensor(validate, dtype=tf.float32))
-        bamm = np.concatenate([bamm, expect], axis=0)
+        bamm = np.concatenate([sources, bamm, expect], axis=0)
         display.show_images(bamm, 5)
-        model.save("models/tf_model.tf")
+        display.save(f"snapshots/image_ep_{n + 1}_{history.history['loss'][-1]:.4f}.png")
+        model.save("models/tf_model_conv.tf")
+        print(f"meta-epoch {n + 1}: avg_loss: {sum(history.history['loss'])/len(history.history['loss']):.4f}")
+        total_epochs += epochs
+    print(f"done 20 meta-epochs with {total_epochs} epochs run.")
     plt.waitforbuttonpress()
 
 

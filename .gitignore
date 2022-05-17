@@ -7,3 +7,4 @@ bounding_boxes.csv
 /models/
 *.pt
 *.pth
+/snapshots/

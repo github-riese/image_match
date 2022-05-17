@@ -43,10 +43,14 @@ class Dataset(torch.utils.data.Dataset):
             original_image_record = self._data.loc[
                 self._data['product_id'].str.contains(product_id) & self._data['flavour'].str.contains('original')]
 
-            if len(original_image_record['path']) != 1:
-                print(original_image_record)
-            orig_image = self._image_loader.load_augmented_image(original_image_record['path'].item(), 'jewellery',
-                                                                 bbox=self._get_bbox_from_df(original_image_record))
+            if len(original_image_record['path']) == 1:
+                path = original_image_record['path'].item()
+                bbox = self._get_bbox_from_df(original_image_record)
+            else:
+                path = row['path']
+                bbox = self._get_bbox_from_df(row)
+            orig_image = self._image_loader.load_augmented_image(path, 'jewellery',
+                                                                 bbox=bbox)
         else:
             orig_image = image
         image = np.array(image, dtype=np.float32)

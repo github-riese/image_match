@@ -12,7 +12,9 @@ def dataloader_wrapper(dataset: Dataset, randomize: bool, batch_size: int):
         random.shuffle(indexes)
 
     index = 0
-    while index < total_items:
+    while True:
+        if index >= total_items:
+            index = 0
         batch_x = batch_y = None
         for b in range(batch_size):
             index += 1
