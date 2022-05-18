@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import torch
+from keras.callbacks import Callback
 from keras.optimizer_v2.nadam import Nadam
 from matplotlib import pyplot as plt
 from tensorflow.python.keras.callbacks import History
@@ -18,6 +19,26 @@ from image_loader import ImageLoader
 from tf_dataloader_wrapper import dataloader_wrapper
 
 
+class PlottingCallback(Callback):
+
+    def __init__(self, display: ImageDisplay, sources: np.ndarray, validate: tf.Tensor, expect: np.ndarray):
+        super(PlottingCallback, self).__init__()
+        self._display = display
+        self._sources = sources
+        self._validate = validate
+        self._expect = expect
+
+    def on_epoch_end(self, epoch, logs=None):
+        bamm = self.model.predict(tf.convert_to_tensor(self._validate, dtype=tf.float32))
+        bamm = np.concatenate([self._sources, bamm, self._expect], axis=0)
+        self._display.show_images(bamm, 5)
+        self._display.save(f"snapshots/image_ep_{epoch + 1:03d}_{logs['loss']:.4f}.png")
+        if epoch % 5 == 4:
+            self.model.save("models/tf_model.tf")
+            print("model saved.")
+        return super().on_epoch_end(epoch, logs)
+
+
 def generate_default_view(args: list):
     config = _configure(args)
     base_image_loader = ImageLoader({'jewellery': config['image_path']}, (240, 240))
@@ -28,11 +49,13 @@ def generate_default_view(args: list):
     validation_dataset = dataset.get_reserved_data()
     validation_loader = DataLoader(validation_dataset, batch_size=10, shuffle=False)
 
-    if os.path.exists("models/tf_model_conv.tf"):
-        model = tf.keras.models.load_model("models/tf_model_conv.tf")
+    model_filename = "models/tf_model.tf"
+
+    if os.path.exists(model_filename):
+        model = tf.keras.models.load_model(model_filename)
     else:
         model = ImageGenerator().get_model()
-    model.compile(optimizer=Nadam(0.01), loss='binary_crossentropy')
+    model.compile(optimizer=Nadam(), loss='binary_crossentropy')
     model.summary()
 
     #    validation_ids = list(enumerate(validation_dataset))
@@ -52,21 +75,15 @@ def generate_default_view(args: list):
     display = ImageDisplay()
 
     batch_size = 15
-    total_epochs = 0
-    for n in range(20):
-        print(f"meta-epoch {n + 1}...")
-        epochs = min(n * 2 + 1, 10)
-        history: History = model.fit(dataloader_wrapper(dataset, True, batch_size),
-                                     steps_per_epoch=len(dataset) / batch_size,
-                                     epochs=epochs, validation_freq=1, verbose=1)
-        bamm = model.predict(tf.convert_to_tensor(validate, dtype=tf.float32))
-        bamm = np.concatenate([sources, bamm, expect], axis=0)
-        display.show_images(bamm, 5)
-        display.save(f"snapshots/image_ep_{n + 1}_{history.history['loss'][-1]:.4f}.png")
-        model.save("models/tf_model_conv.tf")
-        print(f"meta-epoch {n + 1}: avg_loss: {sum(history.history['loss'])/len(history.history['loss']):.4f}")
-        total_epochs += epochs
-    print(f"done 20 meta-epochs with {total_epochs} epochs run.")
+    epochs = 100
+
+    callback = PlottingCallback(display, sources, validate, expect)
+
+    model.fit(dataloader_wrapper(dataset, True, batch_size),
+              steps_per_epoch=len(dataset) / batch_size,
+              epochs=epochs, validation_freq=1, verbose=1,
+              callbacks=callback)
+    model.save(model_filename)
     plt.waitforbuttonpress()
 
 

@@ -10,20 +10,14 @@ class ImageGenerator:
         self._features.trainable = False
 
         self._generate = Sequential([
-            BatchNormalization(),
-            Conv2DTranspose(128, 5, 5, activation=LeakyReLU(0.2), padding='same',
+            Conv2DTranspose(128, 10, 5, activation=LeakyReLU(0.2), padding='same',
                             kernel_initializer=RandomNormal(mean=0.1, stddev=0.1),
                             bias_initializer='zeros'),
-            Conv2D(128, 2, 2, activation=LeakyReLU(0.2), padding='same',
-                   kernel_initializer=RandomNormal(mean=-0.02, stddev=0.2),
-                   bias_initializer='zeros'),
-            Conv2DTranspose(64, 4, 4, activation=LeakyReLU(0.1), kernel_initializer=RandomNormal(mean=0.1, stddev=0.1),
+            Conv2DTranspose(128, 4, 4, activation=LeakyReLU(0.1), kernel_initializer=RandomNormal(mean=0.1, stddev=0.1),
                             bias_initializer='zeros'),
-            Conv2D(64, 2, 2, activation=LeakyReLU(0.2), kernel_initializer=RandomNormal(mean=-0.02, stddev=0.1),
-                   bias_initializer='zeros'),
-            Conv2DTranspose(3, 8, 8, activation=LeakyReLU(0.2), kernel_initializer=RandomNormal(mean=0.1, stddev=0.1),
+            Conv2DTranspose(128, 4, 4, activation=LeakyReLU(0.2), kernel_initializer=RandomNormal(mean=0.1, stddev=0.1),
                             bias_initializer='zeros'),
-            Conv2D(3, 1, 1, activation='sigmoid', kernel_initializer=RandomNormal(.001))
+            Conv2D(3, 2, 2, activation='sigmoid', kernel_initializer=RandomNormal(.001))
         ])
 
     def get_model(self) -> Sequential:

@@ -16,7 +16,7 @@ def dataloader_wrapper(dataset: Dataset, randomize: bool, batch_size: int):
         if index >= total_items:
             index = 0
         batch_x = batch_y = None
-        for b in range(batch_size):
+        for b in range(min(total_items - index, batch_size)):
             index += 1
             x, y = dataset.__getitem__(index)
             batch_x = _add_tensor_to_tensors(batch_x, x)
