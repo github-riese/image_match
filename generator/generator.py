@@ -5,9 +5,9 @@ import pandas as pd
 import tensorflow as tf
 import torch
 from keras.callbacks import Callback
+from keras.losses import BinaryCrossentropy
 from keras.optimizer_v2.nadam import Nadam
 from matplotlib import pyplot as plt
-from tensorflow.python.keras.callbacks import History
 from torch.nn import Module
 from torch.utils.data import DataLoader
 
@@ -55,12 +55,13 @@ def generate_default_view(args: list):
         model = tf.keras.models.load_model(model_filename)
     else:
         model = ImageGenerator().get_model()
-    model.compile(optimizer=Nadam(), loss='binary_crossentropy')
+    model.compile(optimizer=Nadam(learning_rate=0.0001, beta_1=0.9),
+                  loss=BinaryCrossentropy())
     model.summary()
 
     #    validation_ids = list(enumerate(validation_dataset))
     #    random.shuffle(validation_ids)
-    validation_ids = [5, 15, 25, 35, 45]
+    validation_ids = [2, 13, 21, 37, 53]
 
     sources = np.zeros((0, 80, 80, 3))
     validate = tf.zeros((0, 80, 80, 3))
@@ -74,15 +75,15 @@ def generate_default_view(args: list):
         expect = np.concatenate([expect, y.reshape((1, 80, 80, 3))], axis=0)
     display = ImageDisplay()
 
-    batch_size = 15
-    epochs = 100
+    batch_size = 30
+    epochs = 1000
 
     callback = PlottingCallback(display, sources, validate, expect)
 
     model.fit(dataloader_wrapper(dataset, True, batch_size),
               steps_per_epoch=len(dataset) / batch_size,
               epochs=epochs, validation_freq=1, verbose=1,
-              callbacks=callback)
+              callbacks=callback, initial_epoch=200)
     model.save(model_filename)
     plt.waitforbuttonpress()
 
