@@ -8,3 +8,4 @@ bounding_boxes.csv
 *.pt
 *.pth
 /snapshots/
+/loss.csv

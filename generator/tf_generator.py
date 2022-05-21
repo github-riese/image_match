@@ -10,12 +10,14 @@ class ImageGenerator:
         self._features.trainable = False
 
         self._generate = Sequential([
-            Conv2DTranspose(128, 10, 5, activation=LeakyReLU(0.2), padding='same',
+            Conv2DTranspose(255, 10, 5, activation=LeakyReLU(0.2), padding='same',
                             kernel_initializer=RandomNormal(mean=0.1, stddev=0.1),
                             bias_initializer='zeros'),
-            Conv2DTranspose(128, 4, 4, activation=LeakyReLU(0.1), kernel_initializer=RandomNormal(mean=0.1, stddev=0.1),
+            Conv2DTranspose(256, 4, 4, activation=LeakyReLU(0.1), kernel_initializer=RandomNormal(mean=0.1, stddev=0.1),
                             bias_initializer='zeros'),
-            Conv2DTranspose(128, 4, 4, activation=LeakyReLU(0.2), kernel_initializer=RandomNormal(mean=0.1, stddev=0.1),
+            Conv2DTranspose(128, 2, 2, activation=LeakyReLU(0.2), kernel_initializer=RandomNormal(mean=0.1, stddev=0.1),
+                            bias_initializer='zeros'),
+            Conv2DTranspose(128, 2, 2, activation=LeakyReLU(0.2), kernel_initializer=RandomNormal(mean=0.1, stddev=0.1),
                             bias_initializer='zeros'),
             Conv2D(3, 2, 2, activation='sigmoid', kernel_initializer=RandomNormal(.001))
         ])

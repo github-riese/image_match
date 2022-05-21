@@ -21,12 +21,14 @@ from tf_dataloader_wrapper import dataloader_wrapper
 
 class PlottingCallback(Callback):
 
-    def __init__(self, display: ImageDisplay, sources: np.ndarray, validate: tf.Tensor, expect: np.ndarray):
+    def __init__(self, display: ImageDisplay, sources: np.ndarray, validate: tf.Tensor, expect: np.ndarray,
+                 loss_fd: int):
         super(PlottingCallback, self).__init__()
         self._display = display
         self._sources = sources
         self._validate = validate
         self._expect = expect
+        self._loss_fd = loss_fd
 
     def on_epoch_end(self, epoch, logs=None):
         bamm = self.model.predict(tf.convert_to_tensor(self._validate, dtype=tf.float32))
@@ -36,6 +38,7 @@ class PlottingCallback(Callback):
         if epoch % 5 == 4:
             self.model.save("models/tf_model.tf")
             print("model saved.")
+        os.write(self._loss_fd, bytes(f"{epoch + 1}, {logs['loss']:.5f}\n", "UTF-8"))
         return super().on_epoch_end(epoch, logs)
 
 
@@ -51,11 +54,17 @@ def generate_default_view(args: list):
 
     model_filename = "models/tf_model.tf"
 
+    if os.path.exists("loss.csv"):
+        losses = os.open("loss.csv", os.O_WRONLY | os.O_APPEND)
+    else:
+        losses = os.open("loss.csv", os.O_WRONLY | os.O_CREAT)
+        os.write(losses, bytes("epoch,loss\n", "UTF-8"))
+
     if os.path.exists(model_filename):
         model = tf.keras.models.load_model(model_filename)
     else:
         model = ImageGenerator().get_model()
-    model.compile(optimizer=Nadam(learning_rate=0.0001, beta_1=0.9),
+    model.compile(optimizer=Nadam(learning_rate=0.001, beta_1=0.9),
                   loss=BinaryCrossentropy())
     model.summary()
 
@@ -76,15 +85,16 @@ def generate_default_view(args: list):
     display = ImageDisplay()
 
     batch_size = 30
-    epochs = 1000
+    epochs = config['epochs']
 
-    callback = PlottingCallback(display, sources, validate, expect)
+    callback = PlottingCallback(display, sources, validate, expect, losses)
 
     model.fit(dataloader_wrapper(dataset, True, batch_size),
               steps_per_epoch=len(dataset) / batch_size,
               epochs=epochs, validation_freq=1, verbose=1,
-              callbacks=callback, initial_epoch=200)
+              callbacks=callback, initial_epoch=config['initial_epoch'])
     model.save(model_filename)
+    os.close(losses)
     plt.waitforbuttonpress()
 
 
@@ -102,5 +112,7 @@ def _configure(args: list) -> dict:
     return {
         'model': args[1],
         'image_path': args[2],
-        'csv_file': args[3]
+        'csv_file': args[3],
+        'epochs': int(args[4] if len(args) > 4 else 1000),
+        'initial_epoch': int(args[5] if len(args) > 5 else 0),
     }
