@@ -34,6 +34,8 @@ def find_bounding_boxes(args: List[str]) -> None:
             print(f"{relative_path} seem to be none of my images.")
             continue
         parts = relative_path.split('/')
+        if len(parts) < 2:
+            continue
         flavour, jewellery_type = parts[0], parts[1]
 
         img = read_image(f)

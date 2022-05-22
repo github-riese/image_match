@@ -19,9 +19,15 @@ def dataloader_wrapper(dataset: Dataset, randomize: bool, batch_size: int):
         for b in range(min(total_items - index, batch_size)):
             index += 1
             x, y = dataset.__getitem__(index)
+            x = normalize_x(x)
             batch_x = _add_tensor_to_tensors(batch_x, x)
             batch_y = _add_tensor_to_tensors(batch_y, y)
         yield batch_x, batch_y
+
+
+def normalize_x(x: np.ndarray):
+    x -= x.mean()
+    return x / (x.std() + 1e-7)
 
 
 def _add_tensor_to_tensors(batch: Optional[np.ndarray], tensor: np.ndarray) -> np.ndarray:

@@ -9,3 +9,5 @@ bounding_boxes.csv
 *.pth
 /snapshots/
 /loss.csv
+.DS_Store
+loss*.csv

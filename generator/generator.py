@@ -1,11 +1,12 @@
 import os
+from copy import deepcopy
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 import torch
 from keras.callbacks import Callback
-from keras.losses import BinaryCrossentropy
+from keras.losses import BinaryCrossentropy, LogCosh, CategoricalCrossentropy, CosineSimilarity, MeanAbsoluteError
 from keras.optimizer_v2.nadam import Nadam
 from matplotlib import pyplot as plt
 from torch.nn import Module
@@ -16,7 +17,7 @@ from generator.dataset import Dataset
 from generator.tf_generator import ImageGenerator
 from image_display import ImageDisplay
 from image_loader import ImageLoader
-from tf_dataloader_wrapper import dataloader_wrapper
+from tf_dataloader_wrapper import dataloader_wrapper, normalize_x
 
 
 class PlottingCallback(Callback):
@@ -33,7 +34,7 @@ class PlottingCallback(Callback):
     def on_epoch_end(self, epoch, logs=None):
         bamm = self.model.predict(tf.convert_to_tensor(self._validate, dtype=tf.float32))
         bamm = np.concatenate([self._sources, bamm, self._expect], axis=0)
-        self._display.show_images(bamm, 5)
+        self._display.show_images(bamm, self._sources.shape[0])
         self._display.save(f"snapshots/image_ep_{epoch + 1:03d}_{logs['loss']:.4f}.png")
         if epoch % 5 == 4:
             self.model.save("models/tf_model.tf")
@@ -64,27 +65,26 @@ def generate_default_view(args: list):
         model = tf.keras.models.load_model(model_filename)
     else:
         model = ImageGenerator().get_model()
-    model.compile(optimizer=Nadam(learning_rate=0.001, beta_1=0.9),
-                  loss=BinaryCrossentropy())
+    model.compile(optimizer=Nadam(learning_rate=0.0001, beta_1=0.95, beta_2=0.999),
+                  loss=MeanAbsoluteError())
     model.summary()
 
     #    validation_ids = list(enumerate(validation_dataset))
     #    random.shuffle(validation_ids)
     validation_ids = [2, 13, 21, 37, 53]
 
-    sources = np.zeros((0, 80, 80, 3))
-    validate = tf.zeros((0, 80, 80, 3))
-    expect = np.zeros((0, 80, 80, 3))
+    expect, sources, validate = make_validation_data(validation_dataset, validation_ids)
+    x = image_loader.load_image('/Users/riese/tmp/images/3343OO_screenshot.jpg', desired_size=(80, 80))
+    y = image_loader.load_image('/Users/riese/tmp/images/3343OO.png', desired_size=(80, 80))
+    x = np.array(x / 255, dtype=np.float32)
+    y = np.array(y / 255, dtype=np.float32)
+    validate = tf.concat([validate, np.reshape(normalize_x(deepcopy(x)), (1, 80, 80, 3))], axis=0)
+    sources = np.concatenate([sources, x.reshape((1, 80, 80, 3))], axis=0)
+    expect = np.concatenate([expect, y.reshape((1, 80, 80, 3))], axis=0)
 
-    for n in range(5):
-        index = validation_ids[n]
-        x, y = validation_dataset.__getitem__(index)
-        validate = tf.concat([validate, x.reshape((1, 80, 80, 3))], axis=0)
-        sources = np.concatenate([sources, x.reshape((1, 80, 80, 3))], axis=0)
-        expect = np.concatenate([expect, y.reshape((1, 80, 80, 3))], axis=0)
     display = ImageDisplay()
 
-    batch_size = 30
+    batch_size = 50
     epochs = config['epochs']
 
     callback = PlottingCallback(display, sources, validate, expect, losses)
@@ -96,6 +96,19 @@ def generate_default_view(args: list):
     model.save(model_filename)
     os.close(losses)
     plt.waitforbuttonpress()
+
+
+def make_validation_data(validation_dataset, validation_ids):
+    sources = np.zeros((0, 80, 80, 3))
+    validate = tf.zeros((0, 80, 80, 3))
+    expect = np.zeros((0, 80, 80, 3))
+    for n in range(5):
+        index = validation_ids[n]
+        x, y = validation_dataset.__getitem__(index)
+        validate = tf.concat([validate, normalize_x(deepcopy(x)).reshape((1, 80, 80, 3))], axis=0)
+        sources = np.concatenate([sources, x.reshape((1, 80, 80, 3))], axis=0)
+        expect = np.concatenate([expect, y.reshape((1, 80, 80, 3))], axis=0)
+    return expect, sources, validate
 
 
 def load_model() -> Module:
