@@ -92,6 +92,7 @@ def generate_default_view(args: list):
     model.fit(dataloader_wrapper(dataset, True, batch_size),
               steps_per_epoch=len(dataset) / batch_size,
               epochs=epochs, validation_freq=1, verbose=1,
+              validation_data=(sources, expect),
               callbacks=callback, initial_epoch=config['initial_epoch'])
     model.save(model_filename)
     os.close(losses)
