@@ -6,7 +6,8 @@ import pandas as pd
 import tensorflow as tf
 import torch
 from keras.callbacks import Callback
-from keras.losses import BinaryCrossentropy, LogCosh, CategoricalCrossentropy, CosineSimilarity, MeanAbsoluteError
+from keras.losses import BinaryCrossentropy, LogCosh, CategoricalCrossentropy, CosineSimilarity, MeanAbsoluteError, \
+    MeanSquaredError
 from keras.optimizer_v2.nadam import Nadam
 from matplotlib import pyplot as plt
 from torch.nn import Module
@@ -34,12 +35,12 @@ class PlottingCallback(Callback):
     def on_epoch_end(self, epoch, logs=None):
         bamm = self.model.predict(tf.convert_to_tensor(self._validate, dtype=tf.float32))
         bamm = np.concatenate([self._sources, bamm, self._expect], axis=0)
-        self._display.show_images(bamm, self._sources.shape[0])
+        self._display.show_images(bamm, self._sources.shape[0], losses=(logs['loss'], logs['val_loss']))
         self._display.save(f"snapshots/image_ep_{epoch + 1:03d}_{logs['loss']:.4f}.png")
         if epoch % 5 == 4:
             self.model.save("models/tf_model.tf")
             print("model saved.")
-        os.write(self._loss_fd, bytes(f"{epoch + 1}, {logs['loss']:.5f}\n", "UTF-8"))
+        os.write(self._loss_fd, bytes(f"{epoch + 1}, {logs['loss']:.6f}, {logs['val_loss']:.6f}\n", "UTF-8"))
         return super().on_epoch_end(epoch, logs)
 
 
@@ -59,14 +60,14 @@ def generate_default_view(args: list):
         losses = os.open("loss.csv", os.O_WRONLY | os.O_APPEND)
     else:
         losses = os.open("loss.csv", os.O_WRONLY | os.O_CREAT)
-        os.write(losses, bytes("epoch,loss\n", "UTF-8"))
+        os.write(losses, bytes("epoch,loss,validation loss\n", "UTF-8"))
 
     if os.path.exists(model_filename):
         model = tf.keras.models.load_model(model_filename)
     else:
         model = ImageGenerator().get_model()
-    model.compile(optimizer=Nadam(learning_rate=0.0001, beta_1=0.95, beta_2=0.999),
-                  loss=MeanAbsoluteError())
+    model.compile(optimizer=Nadam(learning_rate=0.0002, beta_1=0.9, beta_2=0.999),
+                  loss=MeanSquaredError())
     model.summary()
 
     #    validation_ids = list(enumerate(validation_dataset))
@@ -82,7 +83,7 @@ def generate_default_view(args: list):
     sources = np.concatenate([sources, x.reshape((1, 80, 80, 3))], axis=0)
     expect = np.concatenate([expect, y.reshape((1, 80, 80, 3))], axis=0)
 
-    display = ImageDisplay()
+    display = ImageDisplay(with_graph=True)
 
     batch_size = 50
     epochs = config['epochs']

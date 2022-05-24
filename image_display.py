@@ -1,28 +1,46 @@
 from math import ceil
-from typing import Tuple
+from typing import Tuple, Optional, List
 
 import numpy as np
 from PIL import Image
 from PIL.ImageDraw import ImageDraw
 from matplotlib import pyplot as plt
+from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
 from torch import Tensor
 
 
 class ImageDisplay:
-    __im: AxesImage = None
+    __figure: Figure = None
+    __ax: List[AxesImage] = None
+    __img: AxesImage
+    __training_loss: np.ndarray
+    __validation_loss: np.ndarray
 
-    def __init__(self):
-        plt.axis('off')
+    def __init__(self, with_graph: bool = False):
+        self.__img = None
+        self.__figure, axes = plt.subplots(nrows=1, ncols=2 if with_graph else 1, clear=True)
+        axes[1].axis('off')
+        self.__ax = axes.flatten()
+        self.__training_loss = np.ndarray(0)
+        self.__validation_loss = np.ndarray(0)
 
-    def show_image(self, image: np.ndarray):
-        if self.__im is None:
-            self.__im = plt.imshow(image)
+    def show_image(self, image: np.ndarray, losses: Optional[Tuple[np.ndarray, ...]]):
+        if self.__img is None:
+            self.__ax[1] = plt.imshow(image)
+            self.__img = self.__ax[1]
         else:
-            self.__im.set_array(image)
+            self.__img.set_array(image)
+
+        if losses is not None:
+            self.__training_loss = np.append(self.__training_loss, losses[0])
+            if len(losses) > 1:
+                self.__validation_loss = np.append(self.__validation_loss, losses[1])
+            self._plot_loss(self.__ax[0], (self.__training_loss, self.__validation_loss))
         plt.pause(.1)
 
-    def show_images(self, images: np.ndarray, columns: int = 1, grid_linewidth: int = 1):
+    def show_images(self, images: np.ndarray, columns: int = 1, grid_linewidth: int = 1,
+                    losses: Optional[Tuple[np.ndarray, ...]] = None):
         if isinstance(images, Tensor):
             images = images.detach().numpy()
             images = np.transpose(images, (0, 2, 3, 1))
@@ -31,10 +49,10 @@ class ImageDisplay:
         count, height, width, channels = images.shape
         rows = int(ceil(count / columns))
         grid = self._make_grid(images, columns, rows, width, height, line_width=grid_linewidth)
-        self.show_image(grid)
+        self.show_image(grid, losses)
 
     def save(self, filename: str):
-        plt.savefig(filename)
+        self.__figure.savefig(filename)
 
     @staticmethod
     def _make_grid(images: np.ndarray, columns: int, rows: int, im_width: int, im_height: int,
@@ -61,6 +79,14 @@ class ImageDisplay:
                 draw.rectangle(rect,
                                outline=(0, 0, 0), width=line_width)
         return grid.__array__(dtype=float) / 255
+
+    @staticmethod
+    def _plot_loss(img: AxesImage, losses: Tuple[np.ndarray, ...]):
+        labels = ['training', 'validation']
+        colours = ['c', 'b']
+        for i, loss in enumerate(losses):
+            if len(loss) > 0:
+                img.plot(range(len(loss)), loss, colours[i], labels[i])
 
     @staticmethod
     def _adjust_grid(canvas_size: Tuple[int, int],
