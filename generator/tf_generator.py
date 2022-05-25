@@ -10,17 +10,14 @@ class ImageGenerator:
         self._features.trainable = False
 
         self._generate = Sequential([
-            Conv2DTranspose(256, 10, 10, activation=LeakyReLU(), padding='same',
-                            kernel_initializer=RandomNormal(),
-                            bias_initializer='zeros'),
-            Conv2DTranspose(128, 4, 4, activation=LeakyReLU(),
-                            kernel_initializer=RandomNormal(),
-                            bias_initializer='zeros'),
-            Conv2DTranspose(128, 2, 2, activation=LeakyReLU(),
-                            kernel_initializer=RandomNormal(),
-                            bias_initializer='zeros'),
-            Conv2DTranspose(128, 2, 2, activation=LeakyReLU(), kernel_initializer=RandomNormal()),
-            Conv2D(3, 1, 1, activation='sigmoid', kernel_initializer=RandomNormal())
+            Conv2DTranspose(256, 10, 5, activation=LeakyReLU(), padding='same', kernel_initializer=RandomNormal(),
+                            use_bias=False),
+            BatchNormalization(),
+            Conv2DTranspose(256, 4, 4, activation=LeakyReLU(), kernel_initializer=RandomNormal(), use_bias=False),
+            Conv2DTranspose(128, 2, 2, activation=LeakyReLU(), kernel_initializer=RandomNormal(), use_bias=False),
+            Conv2DTranspose(128, 1, 1, activation=LeakyReLU(), use_bias=False, kernel_initializer=RandomNormal()),
+            BatchNormalization(),
+            Conv2D(3, 1, 1, use_bias=False, activation='sigmoid', kernel_initializer=RandomNormal())
         ])
 
     def get_model(self) -> Sequential:

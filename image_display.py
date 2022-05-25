@@ -82,11 +82,11 @@ class ImageDisplay:
 
     @staticmethod
     def _plot_loss(img: AxesImage, losses: Tuple[np.ndarray, ...]):
-        labels = ['training', 'validation']
-        colours = ['c', 'b']
+        colours = ['g', 'b']
         for i, loss in enumerate(losses):
             if len(loss) > 0:
-                img.plot(range(len(loss)), loss, colours[i], labels[i])
+                img.plot(range(len(loss)), loss, colours[i])
+        img.legend(['training', 'validation'])
 
     @staticmethod
     def _adjust_grid(canvas_size: Tuple[int, int],
