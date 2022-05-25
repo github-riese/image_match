@@ -39,7 +39,9 @@ def find_bounding_boxes(args: List[str]) -> None:
         flavour, jewellery_type = parts[0], parts[1]
 
         img = read_image(f)
-        box = find_bounding_box_in_image(img)
+        box = find_bounding_box_in_image(img, l_threshold=220)
+        if box == ((0.0, 0.0), (0.0, 0.0)):
+            continue
 
         matches = expr.findall(f)
         product_id = matches[0][expr.groupindex['product'] - 1]
