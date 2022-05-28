@@ -54,6 +54,8 @@ def generate_default_view(args: list):
     validation_dataset = dataset.get_reserved_data()
     validation_loader = DataLoader(validation_dataset, batch_size=10, shuffle=False)
 
+    print(f"train dataset contains {len(dataset)} samples, validation up to {len(validation_dataset)}.")
+
     model_filename = "models/tf_model.tf"
 
     if os.path.exists("loss.csv"):
@@ -67,12 +69,12 @@ def generate_default_view(args: list):
     else:
         model = ImageGenerator().get_model()
     model.compile(optimizer=Nadam(learning_rate=0.0002, beta_1=0.9, beta_2=0.999),
-                  loss=MeanSquaredError())
+                  loss=BinaryCrossentropy())
     model.summary()
 
     #    validation_ids = list(enumerate(validation_dataset))
     #    random.shuffle(validation_ids)
-    validation_ids = [2, 13, 21, 37, 53]
+    validation_ids = [46, 89, 115, 123, 133]
 
     expect, sources, validate = make_validation_data(validation_dataset, validation_ids)
     x = image_loader.load_image('/Users/riese/tmp/images/3343OO_screenshot.jpg', desired_size=(80, 80))
@@ -88,13 +90,20 @@ def generate_default_view(args: list):
     batch_size = 50
     epochs = config['epochs']
 
+    val_inputs = val_expect = np.ndarray((0, 80, 80, 3))
+    for i in range(len(validation_dataset)):
+        x, y = validation_dataset[i]
+        val_inputs = np.concatenate([val_inputs, x.reshape((1, 80, 80, 3))], axis=0)
+        val_expect = np.concatenate([val_expect, y.reshape((1, 80, 80, 3))], axis=0)
+
     callback = PlottingCallback(display, sources, validate, expect, losses)
 
     model.fit(dataloader_wrapper(dataset, True, batch_size),
               steps_per_epoch=len(dataset) / batch_size,
               epochs=epochs, validation_freq=1, verbose=1,
-              validation_data=(sources, expect),
+              validation_data=(val_inputs, val_expect),
               callbacks=callback, initial_epoch=config['initial_epoch'])
+
     model.save(model_filename)
     os.close(losses)
     plt.waitforbuttonpress()

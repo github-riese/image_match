@@ -8,13 +8,13 @@ from torch.utils.data import Dataset
 def dataloader_wrapper(dataset: Dataset, randomize: bool, batch_size: int):
     total_items = len(dataset)
     indexes = list(range(total_items))
-    if randomize:
-        random.shuffle(indexes)
 
-    index = 0
+    index = total_items
     while True:
         if index >= total_items:
             index = 0
+            if randomize:
+                random.shuffle(indexes)
         batch_x = batch_y = None
         for b in range(min(total_items - index, batch_size)):
             index += 1
