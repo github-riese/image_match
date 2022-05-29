@@ -68,13 +68,13 @@ def generate_default_view(args: list):
         model = tf.keras.models.load_model(model_filename)
     else:
         model = ImageGenerator().get_model()
-    model.compile(optimizer=Nadam(learning_rate=0.0002, beta_1=0.9, beta_2=0.999),
-                  loss=BinaryCrossentropy())
+    model.compile(optimizer=Nadam(learning_rate=0.00025, beta_1=0.9, beta_2=0.999),
+                  loss=MeanAbsoluteError())
     model.summary()
 
     #    validation_ids = list(enumerate(validation_dataset))
     #    random.shuffle(validation_ids)
-    validation_ids = [46, 89, 115, 123, 133]
+    validation_ids = [42, 92, 117, 127, 155]
 
     expect, sources, validate = make_validation_data(validation_dataset, validation_ids)
     x = image_loader.load_image('/Users/riese/tmp/images/3343OO_screenshot.jpg', desired_size=(80, 80))
@@ -87,7 +87,7 @@ def generate_default_view(args: list):
 
     display = ImageDisplay(with_graph=True)
 
-    batch_size = 50
+    batch_size = 64
     epochs = config['epochs']
 
     val_inputs = val_expect = np.ndarray((0, 80, 80, 3))
@@ -99,7 +99,7 @@ def generate_default_view(args: list):
     callback = PlottingCallback(display, sources, validate, expect, losses)
 
     model.fit(dataloader_wrapper(dataset, True, batch_size),
-              steps_per_epoch=len(dataset) / batch_size,
+              steps_per_epoch=int(len(dataset) / batch_size),
               epochs=epochs, validation_freq=1, verbose=1,
               validation_data=(val_inputs, val_expect),
               callbacks=callback, initial_epoch=config['initial_epoch'])
