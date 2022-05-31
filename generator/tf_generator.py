@@ -11,14 +11,12 @@ class ImageGenerator:
         self._features.trainable = False
 
         self._generate = Sequential([
-            Conv2DTranspose(256, 4, 4, use_bias=False),
-            Conv2D(128, 4, 2, use_bias=False, activation='selu'),
             MaxPool2D(),
             Conv2DTranspose(128, 5, 5, use_bias=False),
-            Conv2DTranspose(128, 2, 2, use_bias=False, activation='selu'),
-            Conv2DTranspose(64, 4, 2, use_bias=False, padding='same'),
-            Conv2DTranspose(32, 4, 2, use_bias=False, padding='same'),
-            Conv2DTranspose(16, 2, 2, use_bias=False, activation='selu'),
+            Conv2DTranspose(128, 2, 2, use_bias=False, activation='swish'),
+            Conv2DTranspose(128, 4, 4, use_bias=False, padding='same', activation='swish'),
+            BatchNormalization(),
+            Conv2DTranspose(196, 2, 2, use_bias=True, activation='leaky_relu'),
             Conv2DTranspose(3, 1, 1, use_bias=False, activation='sigmoid')
         ])
 

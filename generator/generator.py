@@ -8,6 +8,7 @@ import torch
 from keras.callbacks import Callback
 from keras.losses import BinaryCrossentropy, LogCosh, CategoricalCrossentropy, CosineSimilarity, MeanAbsoluteError, \
     MeanSquaredError
+from keras.optimizer_v2.gradient_descent import SGD
 from keras.optimizer_v2.nadam import Nadam
 from matplotlib import pyplot as plt
 from torch.nn import Module
@@ -46,7 +47,8 @@ class PlottingCallback(Callback):
 
 def generate_default_view(args: list):
     config = _configure(args)
-    base_image_loader = ImageLoader({'jewellery': config['image_path']}, (240, 240))
+    base_image_loader = ImageLoader({'jewellery': config['image_path']}, (240, 240),
+                                    cache_path=config['image_path'] + "/cache")
     data = pd.read_csv(config['csv_file'])
     image_loader = AugmentedImageLoader(image_loader=base_image_loader, size=(80, 80))
     dataset = Dataset(data, reserve_percent=.925, image_loader=image_loader)
@@ -68,7 +70,7 @@ def generate_default_view(args: list):
         model = tf.keras.models.load_model(model_filename)
     else:
         model = ImageGenerator().get_model()
-    model.compile(optimizer=Nadam(learning_rate=0.00025, beta_1=0.9, beta_2=0.999),
+    model.compile(optimizer=Nadam(learning_rate=0.00075, beta_1=0.9, beta_2=0.999),
                   loss=MeanAbsoluteError())
     model.summary()
 
@@ -87,7 +89,7 @@ def generate_default_view(args: list):
 
     display = ImageDisplay(with_graph=True)
 
-    batch_size = 64
+    batch_size = 32
     epochs = config['epochs']
 
     val_inputs = val_expect = np.ndarray((0, 80, 80, 3))

@@ -41,7 +41,8 @@ class Dataset(torch.utils.data.Dataset):
         if row['flavour'] != 'original':
             product_id = row['product_id']
             original_image_record = self._data.loc[
-                self._data['product_id'].str.contains(product_id) & self._data['flavour'].str.contains('original')]
+                self._data['product_id'].str.contains(product_id) & self._data['flavour'].str.contains('original')
+                ]
 
             if len(original_image_record['path']) == 1:
                 path = original_image_record['path'].item()
@@ -49,8 +50,7 @@ class Dataset(torch.utils.data.Dataset):
             else:
                 path = row['path']
                 bbox = self._get_bbox_from_df(row)
-            orig_image = self._image_loader.load_augmented_image(path, 'jewellery',
-                                                                 bbox=bbox)
+            orig_image = self._image_loader.load_augmented_image(path, 'jewellery', bbox=bbox)
         else:
             orig_image = image
         image = np.array(image, dtype=np.float32)
