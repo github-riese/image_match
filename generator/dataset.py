@@ -35,6 +35,8 @@ class Dataset(torch.utils.data.Dataset):
         return self._item_count
 
     def __getitem__(self, item):
+        if item % 100 == 99:
+            print(item + 1, end='\r')
         row = self._data.iloc[item]
         image = self._image_loader.load_augmented_image(row['path'], 'jewellery' if row['type'] != 'junk' else None,
                                                         bbox=self._get_bbox_from_df(row))
@@ -52,11 +54,13 @@ class Dataset(torch.utils.data.Dataset):
                 bbox = self._get_bbox_from_df(row)
             orig_image = self._image_loader.load_augmented_image(path, 'jewellery', bbox=bbox)
         else:
-            orig_image = image
+            orig_image = None
         image = np.array(image, dtype=np.float32)
         image /= 255
-        orig_image = np.array(orig_image, dtype=np.float32) / 255
-        shape = image.shape
+        if orig_image is not None:
+            orig_image = np.array(orig_image, dtype=np.float32) / 255
+        else:
+            orig_image = image
         return image, orig_image
         # image.reshape((1, shape[0], shape[1], shape[2])), orig_image.reshape((1, shape[0], shape[1], shape[2]))
 

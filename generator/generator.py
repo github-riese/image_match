@@ -7,7 +7,7 @@ import tensorflow as tf
 import torch
 from keras.callbacks import Callback
 from keras.losses import BinaryCrossentropy, LogCosh, CategoricalCrossentropy, CosineSimilarity, MeanAbsoluteError, \
-    MeanSquaredError
+    MeanSquaredError, Huber
 from keras.optimizer_v2.gradient_descent import SGD
 from keras.optimizer_v2.nadam import Nadam
 from matplotlib import pyplot as plt
@@ -36,7 +36,7 @@ class PlottingCallback(Callback):
     def on_epoch_end(self, epoch, logs=None):
         bamm = self.model.predict(tf.convert_to_tensor(self._validate, dtype=tf.float32))
         bamm = np.concatenate([self._sources, bamm, self._expect], axis=0)
-        self._display.show_images(bamm, self._sources.shape[0], losses=(logs['loss'], logs['val_loss']))
+        self._display.show_images(bamm, self._sources.shape[0], losses=(logs['accuracy'], logs['val_accuracy']))
         self._display.save(f"snapshots/image_ep_{epoch + 1:03d}_{logs['loss']:.4f}.png")
         if epoch % 5 == 4:
             self.model.save("models/tf_model.tf")
@@ -70,8 +70,8 @@ def generate_default_view(args: list):
         model = tf.keras.models.load_model(model_filename)
     else:
         model = ImageGenerator().get_model()
-    model.compile(optimizer=Nadam(learning_rate=0.00075, beta_1=0.9, beta_2=0.999),
-                  loss=MeanAbsoluteError())
+    model.compile(optimizer=Nadam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999),
+                  loss=Huber(delta=0.5), metrics=['accuracy'])
     model.summary()
 
     #    validation_ids = list(enumerate(validation_dataset))
@@ -89,8 +89,15 @@ def generate_default_view(args: list):
 
     display = ImageDisplay(with_graph=True)
 
-    batch_size = 32
+    batch_size = 64
     epochs = config['epochs']
+
+    print("loading traning samples, stand by...")
+    X, Y = list(zip(*[dataset.__getitem__(i) for i in range(int(len(dataset)/1))]))
+    X = list([normalize_x(x) for x in X])
+    X = np.asarray(X, dtype=np.float32)
+    Y = np.asarray(Y, dtype=np.float32)
+    print(f"done loading {len(X)} samples.")
 
     val_inputs = val_expect = np.ndarray((0, 80, 80, 3))
     for i in range(len(validation_dataset)):
@@ -100,8 +107,9 @@ def generate_default_view(args: list):
 
     callback = PlottingCallback(display, sources, validate, expect, losses)
 
-    model.fit(dataloader_wrapper(dataset, True, batch_size),
-              steps_per_epoch=int(len(dataset) / batch_size),
+    model.fit(x=X, y=Y,
+              steps_per_epoch=int(len(X) / batch_size),
+              shuffle=True,
               epochs=epochs, validation_freq=1, verbose=1,
               validation_data=(val_inputs, val_expect),
               callbacks=callback, initial_epoch=config['initial_epoch'])
