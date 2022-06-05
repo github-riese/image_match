@@ -6,7 +6,7 @@ import numpy as np
 from PIL import Image
 from PIL.ImageDraw import ImageDraw
 
-from scan_dir import scan_dir
+from bounding_box.scan_dir import scan_dir
 
 
 def draw_bounding_box(image: Image.Image,

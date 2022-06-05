@@ -11,3 +11,5 @@ bounding_boxes.csv
 /loss.csv
 .DS_Store
 loss*.csv
+/logs_and_stats/
+*.pickle

@@ -1,4 +1,5 @@
 import os
+import pickle
 from copy import deepcopy
 
 import numpy as np
@@ -36,12 +37,15 @@ class PlottingCallback(Callback):
     def on_epoch_end(self, epoch, logs=None):
         bamm = self.model.predict(tf.convert_to_tensor(self._validate, dtype=tf.float32))
         bamm = np.concatenate([self._sources, bamm, self._expect], axis=0)
-        self._display.show_images(bamm, self._sources.shape[0], losses=(logs['accuracy'], logs['val_accuracy']))
+        self._display.show_images(bamm, self._sources.shape[0], losses=(logs['loss'], logs['val_loss']))
         self._display.save(f"snapshots/image_ep_{epoch + 1:03d}_{logs['loss']:.4f}.png")
         if epoch % 5 == 4:
             self.model.save("models/tf_model.tf")
             print("model saved.")
-        os.write(self._loss_fd, bytes(f"{epoch + 1}, {logs['loss']:.6f}, {logs['val_loss']:.6f}\n", "UTF-8"))
+        os.write(self._loss_fd, bytes(
+            f"{epoch + 1}, {logs['loss']:.6f}, {logs['val_loss']:.6f}, "
+            f"{logs['accuracy']:.6f}, {logs['val_accuracy']:.6f}\n",
+            "UTF-8"))
         return super().on_epoch_end(epoch, logs)
 
 
@@ -64,13 +68,13 @@ def generate_default_view(args: list):
         losses = os.open("loss.csv", os.O_WRONLY | os.O_APPEND)
     else:
         losses = os.open("loss.csv", os.O_WRONLY | os.O_CREAT)
-        os.write(losses, bytes("epoch,loss,validation loss\n", "UTF-8"))
+        os.write(losses, bytes("epoch,loss,validation loss, accuracy, validation accuracy\n", "UTF-8"))
 
     if os.path.exists(model_filename):
         model = tf.keras.models.load_model(model_filename)
     else:
         model = ImageGenerator().get_model()
-    model.compile(optimizer=Nadam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999),
+    model.compile(optimizer=Nadam(learning_rate=0.00005, beta_1=0.9, beta_2=0.999),
                   loss=Huber(delta=0.5), metrics=['accuracy'])
     model.summary()
 
@@ -93,10 +97,18 @@ def generate_default_view(args: list):
     epochs = config['epochs']
 
     print("loading traning samples, stand by...")
-    X, Y = list(zip(*[dataset.__getitem__(i) for i in range(int(len(dataset)/1))]))
-    X = list([normalize_x(x) for x in X])
-    X = np.asarray(X, dtype=np.float32)
-    Y = np.asarray(Y, dtype=np.float32)
+    if os.path.exists("inputs.pickle"):
+        f = open("inputs.pickle", "rb")
+        X, Y = pickle.load(f)
+        f.close()
+    else:
+        X, Y = list(zip(*[dataset.__getitem__(i) for i in range(int(len(dataset) / 1))]))
+        X = list([normalize_x(x) for x in X])
+        X = tf.convert_to_tensor(X, dtype=tf.float32)
+        Y = tf.convert_to_tensor(Y, dtype=tf.float32)
+        f = open("inputs.pickle", "wb")
+        pickle.dump((X, Y), f)
+        f.close()
     print(f"done loading {len(X)} samples.")
 
     val_inputs = val_expect = np.ndarray((0, 80, 80, 3))
