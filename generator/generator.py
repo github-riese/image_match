@@ -9,6 +9,7 @@ import torch
 from keras.callbacks import Callback
 from keras.losses import BinaryCrossentropy, LogCosh, CategoricalCrossentropy, CosineSimilarity, MeanAbsoluteError, \
     MeanSquaredError, Huber
+from keras.optimizer_v2.adam import Adam
 from keras.optimizer_v2.gradient_descent import SGD
 from keras.optimizer_v2.nadam import Nadam
 from matplotlib import pyplot as plt
@@ -74,7 +75,7 @@ def generate_default_view(args: list):
         model = tf.keras.models.load_model(model_filename)
     else:
         model = ImageGenerator().get_model()
-    model.compile(optimizer=Nadam(learning_rate=0.00005, beta_1=0.9, beta_2=0.999),
+    model.compile(optimizer=Adam(learning_rate=0.0002, beta_1=0.5, beta_2=0.999),
                   loss=Huber(delta=0.5), metrics=['accuracy'])
     model.summary()
 

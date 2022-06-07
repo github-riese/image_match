@@ -13,3 +13,4 @@ bounding_boxes.csv
 loss*.csv
 /logs_and_stats/
 *.pickle
+*.numbers
