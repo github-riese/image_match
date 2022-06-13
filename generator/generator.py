@@ -1,3 +1,4 @@
+import math
 import os
 import pickle
 from copy import deepcopy
@@ -8,7 +9,7 @@ import tensorflow as tf
 import torch
 from keras.callbacks import Callback
 from keras.losses import BinaryCrossentropy, LogCosh, CategoricalCrossentropy, CosineSimilarity, MeanAbsoluteError, \
-    MeanSquaredError, Huber, SquaredHinge, BinaryFocalCrossentropy
+    MeanSquaredError, Huber, SquaredHinge, BinaryFocalCrossentropy, KLDivergence
 from keras.optimizer_v2.adam import Adam
 from keras.optimizer_v2.gradient_descent import SGD
 from keras.optimizer_v2.nadam import Nadam
@@ -18,10 +19,11 @@ from torch.utils.data import DataLoader
 
 from augmented_image_loader import AugmentedImageLoader
 from generator.dataset import Dataset
+from generator.generator_v2 import Generator
 from generator.tf_generator import ImageGenerator
 from image_display import ImageDisplay
 from image_loader import ImageLoader
-from tf_dataloader_wrapper import dataloader_wrapper, normalize_x
+from tf_dataloader_wrapper import dataloader_wrapper, normalize_x, de_normalize_x
 
 
 class PlottingCallback(Callback):
@@ -34,6 +36,9 @@ class PlottingCallback(Callback):
         self._validate = validate
         self._expect = expect
         self._loss_fd = loss_fd
+
+    def on_train_batch_end(self, batch, logs=None):
+        return
 
     def on_epoch_end(self, epoch, logs=None):
         bamm = self.model.predict(tf.convert_to_tensor(self._validate, dtype=tf.float32))
@@ -54,16 +59,15 @@ def generate_default_view(args: list):
     config = _configure(args)
     base_image_loader = ImageLoader({'jewellery': config['image_path']}, (240, 240),
                                     cache_path=config['image_path'] + "/cache")
-    data = pd.read_csv(config['csv_file'])
     image_loader = AugmentedImageLoader(image_loader=base_image_loader, size=(80, 80))
-    dataset = Dataset(data, reserve_percent=.925, image_loader=image_loader)
-    dataloader = DataLoader(dataset, batch_size=30, shuffle=True)
-    validation_dataset = dataset.get_reserved_data()
-    validation_loader = DataLoader(validation_dataset, batch_size=10, shuffle=False)
 
-    print(f"train dataset contains {len(dataset)} samples, validation up to {len(validation_dataset)}.")
+    data = pd.read_csv(config['csv_file'])
+    dataset = Dataset(data, image_loader=image_loader)
 
-    model_filename = "models/tf_model.tf"
+    print(f"train dataset contains {len(dataset)} samples")
+
+    model_filename = config['model']
+    batch_size = 32
 
     if os.path.exists("loss.csv"):
         losses = os.open("loss.csv", os.O_WRONLY | os.O_APPEND)
@@ -74,27 +78,14 @@ def generate_default_view(args: list):
     if os.path.exists(model_filename):
         model = tf.keras.models.load_model(model_filename)
     else:
-        model = ImageGenerator().get_model()
-    model.compile(optimizer=Nadam(learning_rate=0.000175, beta_1=0.5, beta_2=0.999),
-                  loss=MeanSquaredError(), metrics=['accuracy'])
+        model = Generator(latent_size=256)
+        model.build(input_shape=(None, 80, 80, 3))
+    model.compile(optimizer=Adam(learning_rate=3e-6, beta_1=0.5, beta_2=0.999),
+                  loss=model.loss, metrics=['accuracy', 'mse'])
     model.summary()
-
-    #    validation_ids = list(enumerate(validation_dataset))
-    #    random.shuffle(validation_ids)
-    validation_ids = [42, 92, 117, 127, 155]
-
-    expect, sources, validate = make_validation_data(validation_dataset, validation_ids)
-    x = image_loader.load_image('/Users/riese/tmp/images/3343OO_screenshot.jpg', desired_size=(80, 80))
-    y = image_loader.load_image('/Users/riese/tmp/images/3343OO.png', desired_size=(80, 80))
-    x = np.array(x / 255, dtype=np.float32)
-    y = np.array(y / 255, dtype=np.float32)
-    validate = tf.concat([validate, np.reshape(normalize_x(deepcopy(x)), (1, 80, 80, 3))], axis=0)
-    sources = np.concatenate([sources, x.reshape((1, 80, 80, 3))], axis=0)
-    expect = np.concatenate([expect, y.reshape((1, 80, 80, 3))], axis=0)
 
     display = ImageDisplay(with_graph=True)
 
-    batch_size = 64
     epochs = config['epochs']
 
     print("loading traning samples, stand by...")
@@ -112,19 +103,29 @@ def generate_default_view(args: list):
         f.close()
     print(f"done loading {len(X)} samples.")
 
-    val_inputs = val_expect = np.ndarray((0, 80, 80, 3))
-    for i in range(len(validation_dataset)):
-        x, y = validation_dataset[i]
-        val_inputs = np.concatenate([val_inputs, x.reshape((1, 80, 80, 3))], axis=0)
-        val_expect = np.concatenate([val_expect, y.reshape((1, 80, 80, 3))], axis=0)
+    sources = validate = expect = np.ndarray((0, 80, 80, 3))
+    for i in range(5):
+        x = X[-i]
+        y = Y[-i]
+        validate = np.concatenate([validate, x.reshape((1, 80, 80, 3))], axis=0)
+        expect = np.concatenate([expect, y.reshape((1, 80, 80, 3))], axis=0)
+        sources = np.concatenate([sources, de_normalize_x(deepcopy(x).reshape((1, 80, 80, 3)))], axis=0)
+
+    x = image_loader.load_image('/Users/riese/tmp/images/3343OO_screenshot.jpg', desired_size=(80, 80))
+    y = image_loader.load_image('/Users/riese/tmp/images/3343OO.png', desired_size=(80, 80))
+    x = np.array(x / 255, dtype=np.float32)
+    y = np.array(y / 255, dtype=np.float32)
+    validate = tf.concat([validate, np.reshape(normalize_x(deepcopy(x)), (1, 80, 80, 3))], axis=0)
+    sources = np.concatenate([sources, x.reshape((1, 80, 80, 3))], axis=0)
+    expect = np.concatenate([expect, y.reshape((1, 80, 80, 3))], axis=0)
 
     callback = PlottingCallback(display, sources, validate, expect, losses)
 
     model.fit(x=X, y=Y,
-              steps_per_epoch=int(len(X) / batch_size),
+              steps_per_epoch=int(math.ceil(len(X) / batch_size)),
               shuffle=True,
               epochs=epochs, validation_freq=1, verbose=1,
-              validation_data=(val_inputs, val_expect),
+              validation_split=.1,
               callbacks=callback, initial_epoch=config['initial_epoch'])
 
     model.save(model_filename)

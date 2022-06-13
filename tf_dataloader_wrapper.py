@@ -30,6 +30,10 @@ def normalize_x(x: np.ndarray):
     return x / (x.std() + 1e-7)
 
 
+def de_normalize_x(x: np.ndarray):
+    return (x - x.min())/2
+
+
 def _add_tensor_to_tensors(batch: Optional[np.ndarray], tensor: np.ndarray) -> np.ndarray:
     if batch is None:
         batch = np.zeros((0, tensor.shape[0], tensor.shape[1], tensor.shape[2]), dtype=tensor.dtype)
