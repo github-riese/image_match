@@ -5,10 +5,10 @@ import tensorflow as tf
 from keras import regularizers
 from keras import backend as K
 from keras.applications.vgg16 import VGG16
-from keras.layers import Conv2D, Dense, Dropout, Flatten, Reshape, Conv2DTranspose, BatchNormalization, MaxPool2D, \
-    Lambda, MaxPooling2D
+from keras.layers import Dense, Dropout, Flatten, Reshape, Conv2DTranspose, BatchNormalization, \
+    Lambda, Normalization
 from keras.losses import binary_crossentropy
-from keras.models import Sequential
+from keras.optimizer_v2.adam import Adam
 
 
 class Generator(tf.keras.Model):
@@ -18,6 +18,7 @@ class Generator(tf.keras.Model):
         self._mu = None
         self._sigma = None
 
+        self._norm = Normalization()
         self._vgg = VGG16(include_top=False, input_shape=(None, None, 3), weights='imagenet')
         self._vgg.trainable = False
         self._flatten = Flatten()
@@ -42,7 +43,8 @@ class Generator(tf.keras.Model):
                                            activation='leaky_relu',
                                            kernel_regularizer=regularizers.l2())
         self._batch_norm_2 = BatchNormalization()
-        self._generate_4 = Conv2DTranspose(128, 2, 2, use_bias=False, activation='leaky_relu')
+        self._generate_4 = Conv2DTranspose(128, 2, 2, use_bias=False, activation='leaky_relu',
+                                           kernel_regularizer=regularizers.l2())
         self._generate_5 = Conv2DTranspose(128, 2, 2, use_bias=False, activation='leaky_relu',
                                            kernel_regularizer=regularizers.l2())
         self._generate_6 = Conv2DTranspose(3, 1, 1, use_bias=True, activation='sigmoid')
@@ -58,6 +60,7 @@ class Generator(tf.keras.Model):
         return mu + K.exp(sigma / 2) * epsilon
 
     def call(self, inputs, training=None, mask=None):
+        inputs = self._norm(inputs)
         inputs = self._vgg(inputs)
         inputs = self._flatten(inputs)
         self._mu = self._latent_mu(inputs)
@@ -73,6 +76,7 @@ class Generator(tf.keras.Model):
         inputs = self._reshape(inputs)
         inputs = self._generate_1(inputs)
         inputs = self._batch_norm_1(inputs)
+        inputs = self._dropout(inputs)
         inputs = self._generate_2(inputs)
         inputs = self._generate_3(inputs)
         inputs = self._batch_norm_2(inputs)
@@ -86,11 +90,16 @@ class Generator(tf.keras.Model):
         kl_loss *= -0.5
         return K.mean(reconstruction_loss + kl_loss)
 
+    @staticmethod
+    def load(filename):
+        return tf.keras.models.load_model(filename, custom_objects={"CustomModel": Generator, "loss": Generator.loss},
+                                          compile=False)
+
 
 if __name__ == '__main__':
     model = Generator()
     model.build(input_shape=(None, 80, 80, 3))
-    model.compile()
+    model.compile(optimizer=Adam(learning_rate=2.5e-6, beta_1=0.5, beta_2=0.75), loss=model.loss)
     model.summary()
     input = np.zeros((32, 80, 80, 3), dtype=float)
     y = model.call(input, False)

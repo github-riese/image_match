@@ -8,14 +8,9 @@ import pandas as pd
 import tensorflow as tf
 import torch
 from keras.callbacks import Callback
-from keras.losses import BinaryCrossentropy, LogCosh, CategoricalCrossentropy, CosineSimilarity, MeanAbsoluteError, \
-    MeanSquaredError, Huber, SquaredHinge, BinaryFocalCrossentropy, KLDivergence
 from keras.optimizer_v2.adam import Adam
-from keras.optimizer_v2.gradient_descent import SGD
-from keras.optimizer_v2.nadam import Nadam
 from matplotlib import pyplot as plt
 from torch.nn import Module
-from torch.utils.data import DataLoader
 
 from augmented_image_loader import AugmentedImageLoader
 from generator.dataset import Dataset
@@ -23,16 +18,15 @@ from generator.generator_v2 import Generator
 from generator.tf_generator import ImageGenerator
 from image_display import ImageDisplay
 from image_loader import ImageLoader
-from tf_dataloader_wrapper import dataloader_wrapper, normalize_x, de_normalize_x
+from tf_dataloader_wrapper import normalize_x
 
 
 class PlottingCallback(Callback):
 
-    def __init__(self, display: ImageDisplay, sources: np.ndarray, validate: tf.Tensor, expect: np.ndarray,
+    def __init__(self, display: ImageDisplay, validate: tf.Tensor, expect: np.ndarray,
                  loss_fd: int):
         super(PlottingCallback, self).__init__()
         self._display = display
-        self._sources = sources
         self._validate = validate
         self._expect = expect
         self._loss_fd = loss_fd
@@ -42,8 +36,8 @@ class PlottingCallback(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         bamm = self.model.predict(tf.convert_to_tensor(self._validate, dtype=tf.float32))
-        bamm = np.concatenate([self._sources, bamm, self._expect], axis=0)
-        self._display.show_images(bamm, self._sources.shape[0], losses=(logs['loss'], logs['val_loss']))
+        bamm = np.concatenate([self._validate.numpy(), bamm, self._expect], axis=0)
+        self._display.show_images(bamm, int(math.ceil(bamm.shape[0] / 3)), losses=(logs['loss'], logs['val_loss']))
         self._display.save(f"snapshots/image_ep_{epoch + 1:03d}_{logs['loss']:.4f}.png")
         if epoch % 5 == 4:
             self.model.save("models/tf_model.tf")
@@ -76,12 +70,14 @@ def generate_default_view(args: list):
         os.write(losses, bytes("epoch,loss,validation loss, accuracy, validation accuracy\n", "UTF-8"))
 
     if os.path.exists(model_filename):
-        model = tf.keras.models.load_model(model_filename)
+        model = Generator.load(filename=model_filename)
+#        model = tf.keras.models.load_model(model_filename, compile=False,
+#                                           custom_objects={'CustomModel': 'generator.generator_v2.Generator'})
     else:
         model = Generator(latent_size=256)
-        model.build(input_shape=(None, 80, 80, 3))
-    model.compile(optimizer=Adam(learning_rate=3e-6, beta_1=0.5, beta_2=0.999),
-                  loss=model.loss, metrics=['accuracy', 'mse'])
+    model.build(input_shape=(None, 80, 80, 3))
+    model.compile(optimizer=Adam(learning_rate=2.5e-6, beta_1=0.5, beta_2=0.75), loss=model.loss,
+                  metrics=['accuracy', 'mse'])
     model.summary()
 
     display = ImageDisplay(with_graph=True)
@@ -95,7 +91,6 @@ def generate_default_view(args: list):
         f.close()
     else:
         X, Y = list(zip(*[dataset.__getitem__(i) for i in range(int(len(dataset) / 1))]))
-        X = list([normalize_x(x) for x in X])
         X = tf.convert_to_tensor(X, dtype=tf.float32)
         Y = tf.convert_to_tensor(Y, dtype=tf.float32)
         f = open("inputs.pickle", "wb")
@@ -103,26 +98,27 @@ def generate_default_view(args: list):
         f.close()
     print(f"done loading {len(X)} samples.")
 
-    sources = validate = expect = np.ndarray((0, 80, 80, 3))
+    validate = np.ndarray((0, 80, 80, 3), dtype=np.float32)
+    expect = np.ndarray((0, 80, 80, 3), dtype=np.float32)
     for i in range(5):
         x = X[-i]
         y = Y[-i]
+        x = x.numpy()
+        y = y.numpy()
         validate = np.concatenate([validate, x.reshape((1, 80, 80, 3))], axis=0)
         expect = np.concatenate([expect, y.reshape((1, 80, 80, 3))], axis=0)
-        sources = np.concatenate([sources, de_normalize_x(deepcopy(x).reshape((1, 80, 80, 3)))], axis=0)
 
-    x = image_loader.load_image('/Users/riese/tmp/images/3343OO_screenshot.jpg', desired_size=(80, 80))
-    y = image_loader.load_image('/Users/riese/tmp/images/3343OO.png', desired_size=(80, 80))
+    x = image_loader.load_image('/Users/riese/tmp/images/7024WC_screenshot.png', desired_size=(80, 80))
+    y = image_loader.load_image('/Users/riese/tmp/images/7024WC.png', desired_size=(80, 80))
     x = np.array(x / 255, dtype=np.float32)
     y = np.array(y / 255, dtype=np.float32)
-    validate = tf.concat([validate, np.reshape(normalize_x(deepcopy(x)), (1, 80, 80, 3))], axis=0)
-    sources = np.concatenate([sources, x.reshape((1, 80, 80, 3))], axis=0)
+    validate = tf.concat([validate, np.reshape(x, (1, 80, 80, 3))], axis=0)
     expect = np.concatenate([expect, y.reshape((1, 80, 80, 3))], axis=0)
 
-    callback = PlottingCallback(display, sources, validate, expect, losses)
+    callback = PlottingCallback(display, validate, expect, losses)
 
     model.fit(x=X, y=Y,
-              steps_per_epoch=int(math.ceil(len(X) / batch_size)),
+              steps_per_epoch=int(math.ceil(len(X) / batch_size / 3)),
               shuffle=True,
               epochs=epochs, validation_freq=1, verbose=1,
               validation_split=.1,
