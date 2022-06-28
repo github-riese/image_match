@@ -61,7 +61,7 @@ def generate_default_view(args: list):
     print(f"train dataset contains {len(dataset)} samples")
 
     model_filename = config['model']
-    batch_size = 32
+    batch_size = 16
 
     if os.path.exists("loss.csv"):
         losses = os.open("loss.csv", os.O_WRONLY | os.O_APPEND)
@@ -69,14 +69,12 @@ def generate_default_view(args: list):
         losses = os.open("loss.csv", os.O_WRONLY | os.O_CREAT)
         os.write(losses, bytes("epoch,loss,validation loss, accuracy, validation accuracy\n", "UTF-8"))
 
-    if os.path.exists(model_filename):
-        model = Generator.load(filename=model_filename)
-#        model = tf.keras.models.load_model(model_filename, compile=False,
-#                                           custom_objects={'CustomModel': 'generator.generator_v2.Generator'})
+    if os.path.exists(model_filename) or os.path.exists(model_filename + "/theModel.index"):
+        model = Generator.load(filename=f"{model_filename}/theModel", latent_size=256, input_shape=(None, 80, 80, 3))
     else:
         model = Generator(latent_size=256)
     model.build(input_shape=(None, 80, 80, 3))
-    model.compile(optimizer=Adam(learning_rate=2.5e-6, beta_1=0.5, beta_2=0.75), loss=model.loss,
+    model.compile(optimizer=Adam(learning_rate=5e-6, beta_1=0.45, beta_2=0.5), loss=model.loss,
                   metrics=['accuracy', 'mse'])
     model.summary()
 
@@ -117,14 +115,17 @@ def generate_default_view(args: list):
 
     callback = PlottingCallback(display, validate, expect, losses)
 
-    model.fit(x=X, y=Y,
-              steps_per_epoch=int(math.ceil(len(X) / batch_size / 3)),
-              shuffle=True,
-              epochs=epochs, validation_freq=1, verbose=1,
-              validation_split=.1,
-              callbacks=callback, initial_epoch=config['initial_epoch'])
+    batches_done = config['initial_epoch']
+    for batch_size, epochs in [(128, 50), (64, 150), (32, 500), (16, 1000), (8, 300)]:
+        model.fit(x=X, y=Y,
+                  steps_per_epoch=int(math.ceil(len(X) / batch_size / 3)),
+                  shuffle=True,
+                  epochs=epochs, validation_freq=1, verbose=1,
+                  validation_split=.1,
+                  callbacks=callback, initial_epoch= batches_done)  # config['initial_epoch'])
+        batches_done += batch_size
 
-    model.save(model_filename)
+    model.save(f"{model_filename}/theModel")
     os.close(losses)
     plt.waitforbuttonpress()
 

@@ -1,3 +1,4 @@
+from tensorflow import keras
 import math
 
 import numpy as np
@@ -27,24 +28,24 @@ class Generator(tf.keras.Model):
         self._latent_mu = Dense(latent_size)
         self._latent_sigma = Dense(latent_size)
 
-        self._dense1 = Dense(latent_size * 2, activation='leaky_relu')
+        self._dense1 = Dense(latent_size, activation='leaky_relu')
         self._dropout = Dropout(rate=0.4)
-        self._dense2 = Dense(latent_size * 4, activation='leaky_relu')
+        self._dense2 = Dense(latent_size, activation='leaky_relu')
         self._dense3 = Dense(latent_size, activation='leaky_relu')
 
         self._reshape = Reshape(target_shape=(1, 1, latent_size))
 
         self._generate_1 = Conv2DTranspose(latent_size, 5, 5, use_bias=False, activation='leaky_relu',
-                                           kernel_regularizer=regularizers.l2())
+                                           kernel_regularizer=regularizers.l2(0.001))
         self._batch_norm_1 = BatchNormalization()
         self._generate_2 = Conv2DTranspose(int(math.ceil(latent_size / 2)), 2, 2, use_bias=False,
                                            activation='leaky_relu')
         self._generate_3 = Conv2DTranspose(int(math.ceil(latent_size / 2)), 2, 2, use_bias=False,
                                            activation='leaky_relu',
-                                           kernel_regularizer=regularizers.l2())
+                                           kernel_regularizer=regularizers.l2(0.002))
         self._batch_norm_2 = BatchNormalization()
         self._generate_4 = Conv2DTranspose(128, 2, 2, use_bias=False, activation='leaky_relu',
-                                           kernel_regularizer=regularizers.l2())
+                                           kernel_regularizer=regularizers.l2(0.005))
         self._generate_5 = Conv2DTranspose(128, 2, 2, use_bias=False, activation='leaky_relu',
                                            kernel_regularizer=regularizers.l2())
         self._generate_6 = Conv2DTranspose(3, 1, 1, use_bias=True, activation='sigmoid')
@@ -70,9 +71,9 @@ class Generator(tf.keras.Model):
         if training:
             inputs = self._dropout(inputs)
         inputs = self._dense2(inputs)
-        inputs = self._dense3(inputs)
         if training:
             inputs = self._dropout(inputs)
+        inputs = self._dense3(inputs)
         inputs = self._reshape(inputs)
         inputs = self._generate_1(inputs)
         inputs = self._batch_norm_1(inputs)
@@ -90,10 +91,16 @@ class Generator(tf.keras.Model):
         kl_loss *= -0.5
         return K.mean(reconstruction_loss + kl_loss)
 
-    @staticmethod
-    def load(filename):
-        return tf.keras.models.load_model(filename, custom_objects={"CustomModel": Generator, "loss": Generator.loss},
-                                          compile=False)
+    @classmethod
+    def load(cls, filename, latent_size: int = 512, input_shape: tuple = None):
+        reloaded = cls(latent_size)
+        reloaded.load_weights(filename)
+        if reloaded is not None:
+            reloaded.build(input_shape=input_shape)
+        return reloaded
+
+    def save(self, filename, **kwargs):
+        super(Generator, self).save_weights(filename, **kwargs)
 
 
 if __name__ == '__main__':
@@ -101,6 +108,14 @@ if __name__ == '__main__':
     model.build(input_shape=(None, 80, 80, 3))
     model.compile(optimizer=Adam(learning_rate=2.5e-6, beta_1=0.5, beta_2=0.75), loss=model.loss)
     model.summary()
-    input = np.zeros((32, 80, 80, 3), dtype=float)
-    y = model.call(input, False)
+    inputs = np.zeros((32, 80, 80, 3), dtype=float)
+    outputs = np.ones((32, 80, 80, 3), dtype=float)
+    model.fit(x=inputs, y=outputs, epochs=1)
+    model.save_weights('/tmp/model')
+    reloaded = Generator.load('/tmp/model', input_shape=(None, 80, 80, 3))
+    print(f"reloaded. type of reloaded is {type(reloaded)}")
+    reloaded.compile(optimizer=Adam(learning_rate=2.5e-6, beta_1=0.5, beta_2=0.75), loss=reloaded.loss)
+    reloaded.summary()
+    reloaded.fit(x=inputs, y=outputs, epochs=1)
+    y = reloaded.call(inputs, False)
     print(y.shape)
