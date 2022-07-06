@@ -32,6 +32,7 @@ class Generator(tf.keras.Model):
         self._dropout = Dropout(rate=0.4)
         self._dense2 = Dense(latent_size, activation='leaky_relu')
         self._dense3 = Dense(latent_size, activation='leaky_relu')
+        self._dense4 = Dense(latent_size, activation='leaky_relu')
 
         self._reshape = Reshape(target_shape=(1, 1, latent_size))
 
@@ -46,9 +47,13 @@ class Generator(tf.keras.Model):
         self._batch_norm_2 = BatchNormalization()
         self._generate_4 = Conv2DTranspose(128, 2, 2, use_bias=False, activation='leaky_relu',
                                            kernel_regularizer=regularizers.l2(0.005))
-        self._generate_5 = Conv2DTranspose(128, 2, 2, use_bias=False, activation='leaky_relu',
+        self._generate_5 = Conv2DTranspose(128, 1, 1, use_bias=False, activation='leaky_relu',
                                            kernel_regularizer=regularizers.l2())
-        self._generate_6 = Conv2DTranspose(3, 1, 1, use_bias=True, activation='sigmoid')
+        self._generate_6 = Conv2DTranspose(128, 2, 2, use_bias=False, activation='leaky_relu',
+                                           kernel_regularizer=regularizers.l2())
+        self._generate_7 = Conv2DTranspose(128, 1, 1, use_bias=False, activation='leaky_relu',
+                                           kernel_regularizer=regularizers.l2())
+        self._generate_8 = Conv2DTranspose(3, 1, 1, use_bias=True, activation='sigmoid')
 
         self._latent.build(input_shape=input_shape)
 
@@ -74,6 +79,9 @@ class Generator(tf.keras.Model):
         if training:
             inputs = self._dropout(inputs)
         inputs = self._dense3(inputs)
+        if training:
+            inputs = self._dropout(inputs)
+        inputs = self._dense4(inputs)
         inputs = self._reshape(inputs)
         inputs = self._generate_1(inputs)
         inputs = self._batch_norm_1(inputs)
@@ -83,7 +91,10 @@ class Generator(tf.keras.Model):
         inputs = self._batch_norm_2(inputs)
         inputs = self._generate_4(inputs)
         inputs = self._generate_5(inputs)
-        return self._generate_6(inputs)
+        inputs = self._batch_norm_2(inputs)
+        inputs = self._generate_6(inputs)
+        inputs = self._generate_7(inputs)
+        return self._generate_8(inputs)
 
     def loss(self, actual, predicted):
         reconstruction_loss = binary_crossentropy(K.flatten(actual), K.flatten(predicted)) * 80 * 80 * 3
