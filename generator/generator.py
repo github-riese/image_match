@@ -9,6 +9,7 @@ import tensorflow as tf
 import torch
 from keras.callbacks import Callback
 from keras.optimizer_v2.adam import Adam
+from keras.optimizer_v2.nadam import Nadam
 from matplotlib import pyplot as plt
 from torch.nn import Module
 
@@ -24,12 +25,13 @@ from tf_dataloader_wrapper import normalize_x
 class PlottingCallback(Callback):
 
     def __init__(self, display: ImageDisplay, validate: tf.Tensor, expect: np.ndarray,
-                 loss_fd: int):
+                 loss_fd: int, model_filename: str):
         super(PlottingCallback, self).__init__()
         self._display = display
         self._validate = validate
         self._expect = expect
         self._loss_fd = loss_fd
+        self._model_filename = model_filename
 
     def on_train_batch_end(self, batch, logs=None):
         return
@@ -40,7 +42,7 @@ class PlottingCallback(Callback):
         self._display.show_images(bamm, int(math.ceil(bamm.shape[0] / 3)), losses=(logs['loss'], logs['val_loss']))
         self._display.save(f"snapshots/image_ep_{epoch + 1:03d}_{logs['loss']:.4f}.png")
         if epoch % 5 == 4:
-            self.model.save("models/tf_model.tf")
+            self.model.save(f"{self._model_filename}/theModel")
             print("model saved.")
         os.write(self._loss_fd, bytes(
             f"{epoch + 1}, {logs['loss']:.6f}, {logs['val_loss']:.6f}, "
@@ -61,22 +63,12 @@ def generate_default_view(args: list):
     print(f"train dataset contains {len(dataset)} samples")
 
     model_filename = config['model']
-    batch_size = 16
 
     if os.path.exists("loss.csv"):
         losses = os.open("loss.csv", os.O_WRONLY | os.O_APPEND)
     else:
         losses = os.open("loss.csv", os.O_WRONLY | os.O_CREAT)
         os.write(losses, bytes("epoch,loss,validation loss, accuracy, validation accuracy\n", "UTF-8"))
-
-    if os.path.exists(model_filename) or os.path.exists(model_filename + "/theModel.index"):
-        model = Generator.load(filename=f"{model_filename}/theModel", latent_size=256, input_shape=(None, 80, 80, 3))
-    else:
-        model = Generator(latent_size=256)
-    model.build(input_shape=(None, 80, 80, 3))
-    model.compile(optimizer=Adam(learning_rate=5e-6, beta_1=0.45, beta_2=0.5), loss=model.loss,
-                  metrics=['accuracy', 'mse'])
-    model.summary()
 
     display = ImageDisplay(with_graph=True)
 
@@ -113,21 +105,39 @@ def generate_default_view(args: list):
     validate = tf.concat([validate, np.reshape(x, (1, 80, 80, 3))], axis=0)
     expect = np.concatenate([expect, y.reshape((1, 80, 80, 3))], axis=0)
 
-    callback = PlottingCallback(display, validate, expect, losses)
+    callback = PlottingCallback(display, validate, expect, losses, model_filename)
 
-    batches_done = config['initial_epoch']
-    for batch_size, epochs in [(128, 50), (64, 150), (32, 500), (16, 1000), (8, 300)]:
-        model.fit(x=X, y=Y,
-                  steps_per_epoch=int(math.ceil(len(X) / batch_size / 3)),
-                  shuffle=True,
-                  epochs=epochs, validation_freq=1, verbose=1,
-                  validation_split=.1,
-                  callbacks=callback, initial_epoch= batches_done)  # config['initial_epoch'])
-        batches_done += batch_size
+    epochs_done = config['initial_epoch']
+    model = ensure_model(model_filename)
+
+    batch_size = 128
+    beta_1 = .75
+    learning_rate = 2e-6 * (beta_1 ** epochs_done)
+    model.compile(optimizer=Nadam(learning_rate=learning_rate, beta_1=beta_1, beta_2=0.89), loss=model.loss,
+                  metrics=['accuracy', 'mse'])
+    model.fit(x=X, y=Y,
+              steps_per_epoch=int(math.ceil(len(X) / batch_size / 3)),
+              batch_size=batch_size,
+              shuffle=True,
+              epochs=epochs, validation_freq=1, verbose=1,
+              validation_split=.1,
+              callbacks=callback, initial_epoch=epochs_done)  # config['initial_epoch'])
 
     model.save(f"{model_filename}/theModel")
     os.close(losses)
     plt.waitforbuttonpress()
+
+
+def ensure_model(model_filename) -> tf.keras.Model:
+    if os.path.exists(model_filename) and os.path.exists(model_filename + "/theModel.index"):
+        model = Generator.load(filename=f"{model_filename}/theModel", latent_size=256, input_shape=(None, 80, 80, 3))
+    else:
+        if not os.path.exists(model_filename):
+            os.mkdir(f"{model_filename}")
+        model = Generator(latent_size=256)
+        model.build(input_shape=(None, 80, 80, 3))
+    model.summary()
+    return model
 
 
 def make_validation_data(validation_dataset, validation_ids):
