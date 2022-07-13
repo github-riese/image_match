@@ -88,9 +88,10 @@ def generate_default_view(args: list):
         f.close()
     print(f"done loading {len(X)} samples.")
 
+    indices = [10, 1000, 20000, 17984, 666, 6660]
     validate = np.ndarray((0, 80, 80, 3), dtype=np.float32)
     expect = np.ndarray((0, 80, 80, 3), dtype=np.float32)
-    for i in range(94, 100):
+    for i in indices:
         x = X[i]
         y = Y[i]
         x = x.numpy()

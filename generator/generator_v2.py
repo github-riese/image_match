@@ -39,12 +39,12 @@ class Generator(tf.keras.Model):
         self._batch_norm_1 = BatchNormalization()
         self._generate_2 = Conv2DTranspose(128, 2, 2, use_bias=False,
                                            activation='elu')
-        self._generate_3 = Conv2DTranspose(118, 2, 2, use_bias=False,
+        self._generate_3 = Conv2DTranspose(112, 2, 2, use_bias=False,
                                            activation='elu',
                                            kernel_regularizer=regularizers.l2(0.005))
         self._batch_norm_2 = BatchNormalization()
-        self._generate_4 = Conv2DTranspose(106, 2, 1, use_bias=False, activation='elu', padding='same')
-        self._generate_5 = Conv2DTranspose(58, 2, 2, use_bias=False, activation='elu',
+        self._generate_4 = Conv2DTranspose(96, 2, 1, use_bias=False, activation='elu', padding='same')
+        self._generate_5 = Conv2DTranspose(52, 2, 2, use_bias=False, activation='elu',
                                            kernel_regularizer=regularizers.l2(0.01))
         self._generate_6 = Conv2DTranspose(34, 2, 1, use_bias=False, activation='elu', padding='same',
                                            kernel_regularizer=regularizers.l2())
