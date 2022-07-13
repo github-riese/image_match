@@ -78,7 +78,7 @@ class ImageDisplay:
                 rect = ImageDisplay._adjust_grid((h, w), (left, top, right, bottom), line_width)
                 draw.rectangle(rect,
                                outline=(0, 0, 0), width=line_width)
-        return grid.__array__(dtype=float) / 255
+        return np.asarray(grid, dtype=np.float) / 255
 
     @staticmethod
     def _plot_loss(img: AxesImage, losses: Tuple[np.ndarray, ...]):

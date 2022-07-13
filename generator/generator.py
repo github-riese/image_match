@@ -39,7 +39,7 @@ class PlottingCallback(Callback):
     def on_epoch_end(self, epoch, logs=None):
         bamm = self.model.predict(tf.convert_to_tensor(self._validate, dtype=tf.float32))
         bamm = np.concatenate([self._validate.numpy(), bamm, self._expect], axis=0)
-        self._display.show_images(bamm, int(math.ceil(bamm.shape[0] / 3)), losses=(logs['loss'], logs['val_loss']))
+        self._display.show_images(bamm, int(math.ceil(bamm.shape[0] / 6)), losses=(logs['loss'], logs['val_loss']))
         self._display.save(f"snapshots/image_ep_{epoch + 1:03d}_{logs['loss']:.4f}.png")
         if epoch % 5 == 4:
             self.model.save(f"{self._model_filename}/theModel")
@@ -90,6 +90,13 @@ def generate_default_view(args: list):
 
     validate = np.ndarray((0, 80, 80, 3), dtype=np.float32)
     expect = np.ndarray((0, 80, 80, 3), dtype=np.float32)
+    for i in range(94, 100):
+        x = X[i]
+        y = Y[i]
+        x = x.numpy()
+        y = y.numpy()
+        validate = np.concatenate([validate, x.reshape((1, 80, 80, 3))], axis=0)
+        expect = np.concatenate([expect, y.reshape((1, 80, 80, 3))], axis=0)
     for i in range(5):
         x = X[-i]
         y = Y[-i]
@@ -112,8 +119,8 @@ def generate_default_view(args: list):
 
     batch_size = 128
     beta_1 = .75
-    learning_rate = 2e-6 * (beta_1 ** epochs_done)
-    model.compile(optimizer=Nadam(learning_rate=learning_rate, beta_1=beta_1, beta_2=0.89), loss=model.loss,
+    learning_rate = 6e-4 * (beta_1 ** epochs_done)
+    model.compile(optimizer=Nadam(learning_rate=learning_rate, beta_1=beta_1, beta_2=0.9), loss=model.loss,
                   metrics=['accuracy', 'mse'])
     model.fit(x=X, y=Y,
               steps_per_epoch=int(math.ceil(len(X) / batch_size / 3)),
@@ -121,6 +128,7 @@ def generate_default_view(args: list):
               shuffle=True,
               epochs=epochs, validation_freq=1, verbose=1,
               validation_split=.1,
+              validation_batch_size=256,
               callbacks=callback, initial_epoch=epochs_done)  # config['initial_epoch'])
 
     model.save(f"{model_filename}/theModel")

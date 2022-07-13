@@ -28,31 +28,32 @@ class Generator(tf.keras.Model):
         self._latent_mu = Dense(latent_size)
         self._latent_sigma = Dense(latent_size)
 
-        self._dense1 = Dense(latent_size, activation='leaky_relu')
+        self._dense1 = Dense(latent_size, activation='elu')
         self._dropout = Dropout(rate=0.4)
-        self._dense2 = Dense(latent_size, activation='leaky_relu')
+        self._dense2 = Dense(latent_size, activation='elu')
 
         self._reshape = Reshape(target_shape=(1, 1, latent_size))
 
-        self._generate_1 = Conv2DTranspose(latent_size, 5, 5, use_bias=False, activation='leaky_relu',
-                                           kernel_regularizer=regularizers.l2(0.001))
+        self._generate_1 = Conv2DTranspose(latent_size, 5, 5, use_bias=False, activation='elu',
+                                           kernel_regularizer=regularizers.l2(0.004))
         self._batch_norm_1 = BatchNormalization()
-        self._generate_2 = Conv2DTranspose(int(math.ceil(latent_size / 2)), 2, 2, use_bias=False,
-                                           activation='leaky_relu')
-        self._generate_3 = Conv2DTranspose(int(math.ceil(latent_size / 2)), 2, 2, use_bias=False,
-                                           activation='leaky_relu',
-                                           kernel_regularizer=regularizers.l2(0.002))
-        self._batch_norm_2 = BatchNormalization()
-        self._generate_4 = Conv2DTranspose(128, 2, 2, use_bias=False, activation='leaky_relu',
+        self._generate_2 = Conv2DTranspose(128, 2, 2, use_bias=False,
+                                           activation='elu')
+        self._generate_3 = Conv2DTranspose(118, 2, 2, use_bias=False,
+                                           activation='elu',
                                            kernel_regularizer=regularizers.l2(0.005))
-        self._generate_5 = Conv2DTranspose(128, 2, 1, use_bias=False, activation='leaky_relu', padding='same',
+        self._batch_norm_2 = BatchNormalization()
+        self._generate_4 = Conv2DTranspose(106, 2, 1, use_bias=False, activation='elu', padding='same')
+        self._generate_5 = Conv2DTranspose(58, 2, 2, use_bias=False, activation='elu',
+                                           kernel_regularizer=regularizers.l2(0.01))
+        self._generate_6 = Conv2DTranspose(34, 2, 1, use_bias=False, activation='elu', padding='same',
                                            kernel_regularizer=regularizers.l2())
         self._batch_norm_3 = BatchNormalization()
-        self._generate_6 = Conv2DTranspose(128, 2, 2, use_bias=False, activation='leaky_relu',
+        self._generate_7 = Conv2DTranspose(26, 2, 2, use_bias=False, activation='elu',
                                            kernel_regularizer=regularizers.l2())
-        self._generate_7 = Conv2DTranspose(128, 2, 1, use_bias=False, activation='leaky_relu', padding='same',
+        self._generate_8 = Conv2DTranspose(24, 2, 1, use_bias=False, activation='elu', padding='same',
                                            kernel_regularizer=regularizers.l2())
-        self._generate_8 = Conv2DTranspose(3, 1, 1, use_bias=True, activation='sigmoid')
+        self._output = Conv2DTranspose(3, 1, 1, use_bias=True, activation='sigmoid')
 
         self._latent.build(input_shape=input_shape)
 
@@ -76,17 +77,24 @@ class Generator(tf.keras.Model):
             inputs = self._dropout(inputs)
         inputs = self._dense2(inputs)
         inputs = self._reshape(inputs)
-        inputs = self._generate_1(inputs)
+        inputs = self._generate_1(inputs)  # 5x5xlatent
         inputs = self._batch_norm_1(inputs)
-        inputs = self._generate_2(inputs)
-        inputs = self._generate_3(inputs)
+        inputs = self._generate_2(inputs)  # 10x10x128
+        if training:
+            inputs = self._dropout(inputs)
+        inputs = self._generate_3(inputs)  # 20x20x118
         inputs = self._batch_norm_2(inputs)
-        inputs = self._generate_4(inputs)
-        inputs = self._generate_5(inputs)
+        inputs = self._generate_4(inputs)  # 20x20x106
+        if training:
+            inputs = self._dropout(inputs)
+        inputs = self._generate_5(inputs)  # 40x40x58
         inputs = self._batch_norm_3(inputs)
-        inputs = self._generate_6(inputs)
-        inputs = self._generate_7(inputs)
-        return self._generate_8(inputs)
+        inputs = self._generate_6(inputs)  # 40x40x34
+        if training:
+            inputs = self._dropout(inputs)
+        inputs = self._generate_7(inputs)  # 80x80x26
+        inputs = self._generate_8(inputs)  # 80x80x24
+        return self._output(inputs)  # 80x80x3
 
     def loss(self, actual, predicted):
         reconstruction_loss = binary_crossentropy(K.flatten(actual), K.flatten(predicted)) * 80 * 80 * 3
