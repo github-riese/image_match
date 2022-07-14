@@ -28,30 +28,27 @@ class Generator(tf.keras.Model):
         self._latent_mu = Dense(latent_size)
         self._latent_sigma = Dense(latent_size)
 
-        self._dense1 = Dense(latent_size, activation='elu')
+        self._dense1 = Dense(latent_size, activation='leaky_relu')
         self._dropout = Dropout(rate=0.4)
-        self._dense2 = Dense(latent_size, activation='elu')
+        self._dense2 = Dense(latent_size, activation='leaky_relu')
 
         self._reshape = Reshape(target_shape=(1, 1, latent_size))
 
-        self._generate_1 = Conv2DTranspose(512, 2, 2, use_bias=latent_size < 512, activation='elu',
+        self._generate_1 = Conv2DTranspose(512, 2, 2, use_bias=latent_size < 512, activation='leaky_relu',
                                            kernel_regularizer=regularizers.l2(0.004))
-        self._batch_norm_1 = BatchNormalization()
         self._generate_2 = Conv2DTranspose(256, 5, 5, use_bias=False,
-                                           activation='elu')
+                                           activation='leaky_relu')
         self._generate_3 = Conv2DTranspose(128, 2, 2, use_bias=False,
-                                           activation='elu',
+                                           activation='leaky_relu',
                                            kernel_regularizer=regularizers.l2(0.005))
-        self._batch_norm_2 = BatchNormalization()
-        self._generate_4 = Conv2DTranspose(96, 3, 1, use_bias=False, activation='elu', padding='same')
-        self._generate_5 = Conv2DTranspose(72, 2, 2, use_bias=False, activation='elu',
+        self._generate_4 = Conv2DTranspose(96, 3, 1, use_bias=False, activation='leaky_relu', padding='same')
+        self._generate_5 = Conv2DTranspose(72, 2, 2, use_bias=False, activation='leaky_relu',
                                            kernel_regularizer=regularizers.l2(0.01))
-        self._generate_6 = Conv2DTranspose(64, 3, 1, use_bias=False, activation='elu', padding='same',
+        self._generate_6 = Conv2DTranspose(64, 3, 1, use_bias=False, activation='leaky_relu', padding='same',
                                            kernel_regularizer=regularizers.l2())
-        self._batch_norm_3 = BatchNormalization()
-        self._generate_7 = Conv2DTranspose(48, 2, 2, use_bias=False, activation='elu',
+        self._generate_7 = Conv2DTranspose(48, 2, 2, use_bias=False, activation='leaky_relu',
                                            kernel_regularizer=regularizers.l2())
-        self._generate_8 = Conv2DTranspose(48, 2, 1, use_bias=False, activation='elu', padding='same',
+        self._generate_8 = Conv2DTranspose(48, 2, 1, use_bias=False, activation='leaky_relu', padding='same',
                                            kernel_regularizer=regularizers.l2())
         self._output = Conv2DTranspose(3, 1, 1, use_bias=True, activation='sigmoid')
 
@@ -78,15 +75,13 @@ class Generator(tf.keras.Model):
         inputs = self._dense2(inputs)
         inputs = self._reshape(inputs)     # 1x1xlatent
         inputs = self._generate_1(inputs)  # 2x2x512
-        # inputs = self._batch_norm_1(inputs)
         inputs = self._generate_2(inputs)  # 10x10x256
         inputs = self._generate_3(inputs)  # 20x20x128
-        # inputs = self._batch_norm_2(inputs)
         inputs = self._generate_4(inputs)  # 20x20x96
         inputs = self._generate_5(inputs)  # 40x40x72
-        # inputs = self._batch_norm_3(inputs)
-        inputs = self._generate_6(inputs)  # 40x40x48
-        inputs = self._generate_7(inputs)  # 80x80x36
+        inputs = self._generate_6(inputs)  # 40x40x64
+        inputs = self._generate_7(inputs)  # 80x80x48
+        inputs = self._generate_8(inputs)  # 80x80x48
         return self._output(inputs)  # 80x80x3
 
     def loss(self, actual, predicted):
