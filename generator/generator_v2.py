@@ -34,24 +34,24 @@ class Generator(tf.keras.Model):
 
         self._reshape = Reshape(target_shape=(1, 1, latent_size))
 
-        self._generate_1 = Conv2DTranspose(latent_size, 5, 5, use_bias=False, activation='elu',
+        self._generate_1 = Conv2DTranspose(512, 2, 2, use_bias=latent_size < 512, activation='elu',
                                            kernel_regularizer=regularizers.l2(0.004))
         self._batch_norm_1 = BatchNormalization()
-        self._generate_2 = Conv2DTranspose(128, 2, 2, use_bias=False,
+        self._generate_2 = Conv2DTranspose(256, 5, 5, use_bias=False,
                                            activation='elu')
-        self._generate_3 = Conv2DTranspose(112, 2, 2, use_bias=False,
+        self._generate_3 = Conv2DTranspose(128, 2, 2, use_bias=False,
                                            activation='elu',
                                            kernel_regularizer=regularizers.l2(0.005))
         self._batch_norm_2 = BatchNormalization()
-        self._generate_4 = Conv2DTranspose(96, 2, 1, use_bias=False, activation='elu', padding='same')
-        self._generate_5 = Conv2DTranspose(52, 2, 2, use_bias=False, activation='elu',
+        self._generate_4 = Conv2DTranspose(96, 3, 1, use_bias=False, activation='elu', padding='same')
+        self._generate_5 = Conv2DTranspose(72, 2, 2, use_bias=False, activation='elu',
                                            kernel_regularizer=regularizers.l2(0.01))
-        self._generate_6 = Conv2DTranspose(34, 2, 1, use_bias=False, activation='elu', padding='same',
+        self._generate_6 = Conv2DTranspose(64, 3, 1, use_bias=False, activation='elu', padding='same',
                                            kernel_regularizer=regularizers.l2())
         self._batch_norm_3 = BatchNormalization()
-        self._generate_7 = Conv2DTranspose(26, 2, 2, use_bias=False, activation='elu',
+        self._generate_7 = Conv2DTranspose(48, 2, 2, use_bias=False, activation='elu',
                                            kernel_regularizer=regularizers.l2())
-        self._generate_8 = Conv2DTranspose(24, 2, 1, use_bias=False, activation='elu', padding='same',
+        self._generate_8 = Conv2DTranspose(48, 2, 1, use_bias=False, activation='elu', padding='same',
                                            kernel_regularizer=regularizers.l2())
         self._output = Conv2DTranspose(3, 1, 1, use_bias=True, activation='sigmoid')
 
@@ -76,24 +76,17 @@ class Generator(tf.keras.Model):
         if training:
             inputs = self._dropout(inputs)
         inputs = self._dense2(inputs)
-        inputs = self._reshape(inputs)
-        inputs = self._generate_1(inputs)  # 5x5xlatent
-        inputs = self._batch_norm_1(inputs)
-        inputs = self._generate_2(inputs)  # 10x10x128
-        if training:
-            inputs = self._dropout(inputs)
-        inputs = self._generate_3(inputs)  # 20x20x118
-        inputs = self._batch_norm_2(inputs)
-        inputs = self._generate_4(inputs)  # 20x20x106
-        if training:
-            inputs = self._dropout(inputs)
-        inputs = self._generate_5(inputs)  # 40x40x58
-        inputs = self._batch_norm_3(inputs)
-        inputs = self._generate_6(inputs)  # 40x40x34
-        if training:
-            inputs = self._dropout(inputs)
-        inputs = self._generate_7(inputs)  # 80x80x26
-        inputs = self._generate_8(inputs)  # 80x80x24
+        inputs = self._reshape(inputs)     # 1x1xlatent
+        inputs = self._generate_1(inputs)  # 2x2x512
+        # inputs = self._batch_norm_1(inputs)
+        inputs = self._generate_2(inputs)  # 10x10x256
+        inputs = self._generate_3(inputs)  # 20x20x128
+        # inputs = self._batch_norm_2(inputs)
+        inputs = self._generate_4(inputs)  # 20x20x96
+        inputs = self._generate_5(inputs)  # 40x40x72
+        # inputs = self._batch_norm_3(inputs)
+        inputs = self._generate_6(inputs)  # 40x40x48
+        inputs = self._generate_7(inputs)  # 80x80x36
         return self._output(inputs)  # 80x80x3
 
     def loss(self, actual, predicted):
@@ -115,17 +108,18 @@ class Generator(tf.keras.Model):
 
 
 if __name__ == '__main__':
-    model = Generator(latent_size=256)
+    latent_size = 768
+    model = Generator(latent_size=latent_size)
     model.build(input_shape=(None, 80, 80, 3))
-    model.compile(optimizer=Adam(learning_rate=2.5e-6, beta_1=0.5, beta_2=0.75), loss=model.loss)
+    model.compile(optimizer=Adam(learning_rate=2.5e-3, beta_1=0.5, beta_2=0.75), loss=model.loss)
     model.summary()
     inputs = np.zeros((32, 80, 80, 3), dtype=float)
     outputs = np.ones((32, 80, 80, 3), dtype=float)
     model.fit(x=inputs, y=outputs, epochs=1)
     model.save_weights('/tmp/model')
-    reloaded = Generator.load('/tmp/model', input_shape=(None, 80, 80, 3), latent_size=256)
+    reloaded = Generator.load('/tmp/model', input_shape=(None, 80, 80, 3), latent_size=latent_size)
     print(f"reloaded. type of reloaded is {type(reloaded)}")
-    reloaded.compile(optimizer=Adam(learning_rate=2.5e-6, beta_1=0.5, beta_2=0.75), loss=reloaded.loss)
+    reloaded.compile(optimizer=Adam(learning_rate=2.5e-3, beta_1=0.5, beta_2=0.75), loss=reloaded.loss)
     reloaded.summary()
     reloaded.fit(x=inputs, y=outputs, epochs=1)
     y = reloaded.call(inputs, False)

@@ -98,7 +98,7 @@ def generate_default_view(args: list):
         y = y.numpy()
         validate = np.concatenate([validate, x.reshape((1, 80, 80, 3))], axis=0)
         expect = np.concatenate([expect, y.reshape((1, 80, 80, 3))], axis=0)
-    for i in range(5):
+    for i in range(19, 60, 9):
         x = X[-i]
         y = Y[-i]
         x = x.numpy()
@@ -116,12 +116,12 @@ def generate_default_view(args: list):
     callback = PlottingCallback(display, validate, expect, losses, model_filename)
 
     epochs_done = config['initial_epoch']
-    model = ensure_model(model_filename)
+    model = ensure_model(model_filename, latent_size=768)
 
     batch_size = 128
-    beta_1 = .75
-    learning_rate = 6e-4 * (beta_1 ** epochs_done)
-    model.compile(optimizer=Nadam(learning_rate=learning_rate, beta_1=beta_1, beta_2=0.9), loss=model.loss,
+    beta_1 = .84
+    learning_rate = 6.25e-4 * (beta_1 ** epochs_done)
+    model.compile(optimizer=Nadam(learning_rate=learning_rate, beta_1=beta_1, beta_2=0.75), loss=model.loss,
                   metrics=['accuracy', 'mse'])
     model.fit(x=X, y=Y,
               steps_per_epoch=int(math.ceil(len(X) / batch_size / 3)),
@@ -137,13 +137,13 @@ def generate_default_view(args: list):
     plt.waitforbuttonpress()
 
 
-def ensure_model(model_filename) -> tf.keras.Model:
+def ensure_model(model_filename, latent_size: int = 256) -> tf.keras.Model:
     if os.path.exists(model_filename) and os.path.exists(model_filename + "/theModel.index"):
-        model = Generator.load(filename=f"{model_filename}/theModel", latent_size=256, input_shape=(None, 80, 80, 3))
+        model = Generator.load(filename=f"{model_filename}/theModel", latent_size=latent_size, input_shape=(None, 80, 80, 3))
     else:
         if not os.path.exists(model_filename):
             os.mkdir(f"{model_filename}")
-        model = Generator(latent_size=256)
+        model = Generator(latent_size=latent_size)
         model.build(input_shape=(None, 80, 80, 3))
     model.summary()
     return model
