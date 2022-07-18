@@ -13,26 +13,32 @@ from torch import Tensor
 class ImageDisplay:
     __figure: Figure = None
     __ax: List[AxesImage] = None
+    __with_graph: bool
     __img: AxesImage
     __training_loss: np.ndarray
     __validation_loss: np.ndarray
 
     def __init__(self, with_graph: bool = False):
         self.__img = None
+        self.__with_graph = with_graph
         self.__figure, axes = plt.subplots(nrows=1, ncols=2 if with_graph else 1, clear=True)
-        axes[1].axis('off')
-        self.__ax = axes.flatten()
+        if with_graph:
+            axes[1].axis('off')
+            self.__ax = axes.flatten()
+        else:
+            self.__ax = axes
         self.__training_loss = np.ndarray(0)
         self.__validation_loss = np.ndarray(0)
 
     def show_image(self, image: np.ndarray, losses: Optional[Tuple[np.ndarray, ...]]):
+        im = self.__ax[1] if self.__with_graph else self.__ax
         if self.__img is None:
-            self.__ax[1] = plt.imshow(image)
-            self.__img = self.__ax[1]
+            im = plt.imshow(image)
+            self.__img = im
         else:
             self.__img.set_array(image)
 
-        if losses is not None:
+        if losses is not None and self.__with_graph:
             self.__training_loss = np.append(self.__training_loss, losses[0])
             if len(losses) > 1:
                 self.__validation_loss = np.append(self.__validation_loss, losses[1])
