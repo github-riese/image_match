@@ -119,8 +119,8 @@ def generate_default_view(args: list):
     model = ensure_model(model_filename, latent_size=768)
 
     batch_size = 128
-    beta_1 = .77615
-    learning_rate = 5.89e-6 * (beta_1 ** epochs_done)
+    beta_1 = .7
+    learning_rate = 1.5e-5 * (beta_1 ** epochs_done)
     model.compile(optimizer=Nadam(learning_rate=learning_rate, beta_1=beta_1, beta_2=0.75), loss=model.loss,
                   metrics=['accuracy', 'mae'])
     model.fit(x=X, y=Y,

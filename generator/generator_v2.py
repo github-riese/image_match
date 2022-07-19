@@ -26,17 +26,19 @@ class Generator(tf.keras.Model):
         self._vgg.trainable = False
         self._flatten = Flatten()
 
+        self._dense1 = Dense(latent_size, activation='leaky_relu')
+        self._dropout = Dropout(rate=0.4)
+
         self._latent = Lambda(self._compute_latent, output_shape=(latent_size,))
         self._latent_mu = Dense(latent_size)
         self._latent_sigma = Dense(latent_size)
 
-        self._dense1 = Dense(latent_size, activation='leaky_relu')
-        self._dropout = Dropout(rate=0.4)
-        self._dense2 = Dense(512, activation='leaky_relu')
+        self._dense2 = Dense(latent_size, activation='leaky_relu')
+        self._dense3 = Dense(latent_size, activation='leaky_relu')
 
-        self._reshape = Reshape(target_shape=(1, 1, 512))
+        self._reshape = Reshape(target_shape=(1, 1, latent_size))
 
-        self._generate_1 = Conv2DTranspose(512, 2, 2, use_bias=latent_size > 512, activation='leaky_relu')
+        self._generate_1 = Conv2DTranspose(512, 2, 2, use_bias=latent_size < 512, activation='leaky_relu')
         self._generate_2 = Conv2DTranspose(256, 5, 5, use_bias=False,
                                            activation='leaky_relu')
         self._generate_3 = Conv2DTranspose(128, 2, 2, use_bias=False,
@@ -64,15 +66,16 @@ class Generator(tf.keras.Model):
             inputs = self._noise(inputs)
         inputs = self._vgg(inputs)
         inputs = self._flatten(inputs)
+        inputs = self._dense1(inputs)
         self._mu = self._latent_mu(inputs)
         self._sigma = self._latent_sigma(inputs)
         inputs = self._compute_latent((self._mu, self._sigma))
         if training:
             inputs = self._dropout(inputs)
-        inputs = self._dense1(inputs)
+        inputs = self._dense2(inputs)
         if training:
             inputs = self._dropout(inputs)
-        inputs = self._dense2(inputs)
+        inputs = self._dense3(inputs)
         inputs = self._reshape(inputs)  # 1x1xlatent
         inputs = self._generate_1(inputs)  # 2x2x512
         inputs = self._generate_2(inputs)  # 10x10x256
