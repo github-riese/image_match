@@ -1,3 +1,4 @@
+from keras.optimizer_v2.nadam import Nadam
 from tensorflow import keras
 import math
 
@@ -62,14 +63,20 @@ class Generator(tf.keras.Model):
 
     def call(self, inputs, training=None, mask=None):
         inputs = self._norm(inputs)
-        if training:
-            inputs = self._noise(inputs)
         inputs = self._vgg(inputs)
         inputs = self._flatten(inputs)
+        if training:
+            inputs = self._dropout(inputs)
+
         inputs = self._dense1(inputs)
+
+        if training:
+            inputs = self._noise(inputs)
+
         self._mu = self._latent_mu(inputs)
         self._sigma = self._latent_sigma(inputs)
         inputs = self._compute_latent((self._mu, self._sigma))
+
         if training:
             inputs = self._dropout(inputs)
         inputs = self._dense2(inputs)
@@ -78,9 +85,13 @@ class Generator(tf.keras.Model):
         inputs = self._dense3(inputs)
         inputs = self._reshape(inputs)  # 1x1xlatent
         inputs = self._generate_1(inputs)  # 2x2x512
+        if training:
+            inputs = self._noise(inputs)
         inputs = self._generate_2(inputs)  # 10x10x256
         inputs = self._generate_3(inputs)  # 20x20x128
         inputs = self._generate_4(inputs)  # 20x20x96
+        if training:
+            inputs = self._noise(inputs)
         inputs = self._generate_5(inputs)  # 40x40x72
         inputs = self._generate_6(inputs)  # 40x40x64
         inputs = self._generate_7(inputs)  # 80x80x48
@@ -109,7 +120,7 @@ if __name__ == '__main__':
     latent_size = 768
     model = Generator(latent_size=latent_size)
     model.build(input_shape=(None, 80, 80, 3))
-    model.compile(optimizer=Adam(learning_rate=2.5e-3, beta_1=0.5, beta_2=0.75), loss=model.loss)
+    model.compile(optimizer=Nadam(learning_rate=1.8e-4, beta_1=0.9, beta_2=0.8), loss=model.loss)
     model.summary()
     inputs = np.zeros((32, 80, 80, 3), dtype=float)
     outputs = np.ones((32, 80, 80, 3), dtype=float)
