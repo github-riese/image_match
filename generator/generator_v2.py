@@ -22,20 +22,21 @@ class Generator(tf.keras.Model):
         self._sigma = None
 
         self._norm = Normalization()
-        self._noise = GaussianNoise(.05)
+        self._noise_1 = GaussianNoise(.01)
+        self._noise_2 = GaussianNoise(.001)
         self._vgg = VGG16(include_top=False, input_shape=(None, None, 3), weights='imagenet')
         self._vgg.trainable = False
         self._flatten = Flatten()
 
-        self._dense1 = Dense(latent_size, activation='leaky_relu')
+        self._dense_1 = Dense(latent_size, activation='leaky_relu')
         self._dropout = Dropout(rate=0.4)
 
         self._latent = Lambda(self._compute_latent, output_shape=(latent_size,))
         self._latent_mu = Dense(latent_size)
         self._latent_sigma = Dense(latent_size)
 
-        self._dense2 = Dense(latent_size, activation='leaky_relu')
-        self._dense3 = Dense(latent_size, activation='leaky_relu')
+        self._dense_2 = Dense(latent_size, activation='leaky_relu')
+        self._dense_3 = Dense(latent_size, activation='leaky_relu')
 
         self._reshape = Reshape(target_shape=(1, 1, latent_size))
 
@@ -54,44 +55,49 @@ class Generator(tf.keras.Model):
         self._latent.build(input_shape=input_shape)
 
     @staticmethod
-    def _compute_latent(x):
-        mu, sigma = x
-        batch = K.shape(mu)[0]
-        dim = K.int_shape(mu)[1]
-        epsilon = K.random_normal(shape=(batch, dim))
-        return mu + K.exp(sigma / 2) * epsilon
+    def _compute_latent(x, training):
+        if training:
+            mu, sigma = x
+            batch_size = K.shape(mu)[0]
+            dim = K.int_shape(mu)[1]
+            epsilon = K.random_normal(shape=(batch_size, dim))
+            return mu + K.exp(sigma / 2) * epsilon
+        else:
+            return x[0]
 
     def call(self, inputs, training=None, mask=None):
         inputs = self._norm(inputs)
+        if training:
+            inputs = self._noise_1(inputs)
         inputs = self._vgg(inputs)
         inputs = self._flatten(inputs)
         if training:
             inputs = self._dropout(inputs)
 
-        inputs = self._dense1(inputs)
+        inputs = self._dense_1(inputs)
 
         if training:
-            inputs = self._noise(inputs)
+            inputs = self._noise_1(inputs)
 
         self._mu = self._latent_mu(inputs)
         self._sigma = self._latent_sigma(inputs)
-        inputs = self._compute_latent((self._mu, self._sigma))
+        inputs = self._compute_latent((self._mu, self._sigma), training)
 
         if training:
             inputs = self._dropout(inputs)
-        inputs = self._dense2(inputs)
+        inputs = self._dense_2(inputs)
         if training:
             inputs = self._dropout(inputs)
-        inputs = self._dense3(inputs)
+        inputs = self._dense_3(inputs)
         inputs = self._reshape(inputs)  # 1x1xlatent
         inputs = self._generate_1(inputs)  # 2x2x512
         if training:
-            inputs = self._noise(inputs)
+            inputs = self._noise_2(inputs)
         inputs = self._generate_2(inputs)  # 10x10x256
         inputs = self._generate_3(inputs)  # 20x20x128
         inputs = self._generate_4(inputs)  # 20x20x96
         if training:
-            inputs = self._noise(inputs)
+            inputs = self._noise_2(inputs)
         inputs = self._generate_5(inputs)  # 40x40x72
         inputs = self._generate_6(inputs)  # 40x40x64
         inputs = self._generate_7(inputs)  # 80x80x48
@@ -120,7 +126,7 @@ if __name__ == '__main__':
     latent_size = 768
     model = Generator(latent_size=latent_size)
     model.build(input_shape=(None, 80, 80, 3))
-    model.compile(optimizer=Nadam(learning_rate=1.8e-4, beta_1=0.9, beta_2=0.8), loss=model.loss)
+    model.compile(optimizer=Nadam(learning_rate=2e-4, beta_1=0.9, beta_2=0.8), loss=model.loss)
     model.summary()
     inputs = np.zeros((32, 80, 80, 3), dtype=float)
     outputs = np.ones((32, 80, 80, 3), dtype=float)
