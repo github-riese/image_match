@@ -116,20 +116,20 @@ def generate_default_view(args: list):
     callback = PlottingCallback(display, validate, expect, losses, model_filename)
 
     epochs_done = config['initial_epoch']
-    model = ensure_model(model_filename, latent_size=768)
+    model = ensure_model(model_filename, latent_size=2048)
 
     batch_size = 128
-    beta_1 = .84
-    learning_rate = 6.25e-4 * (beta_1 ** epochs_done)
+    beta_1 = .9
+    learning_rate = 5.7e-4 * (beta_1 ** epochs_done)
     model.compile(optimizer=Nadam(learning_rate=learning_rate, beta_1=beta_1, beta_2=0.75), loss=model.loss,
-                  metrics=['accuracy', 'mse'])
+                  metrics=['accuracy', 'mae'])
     model.fit(x=X, y=Y,
-              steps_per_epoch=int(math.ceil(len(X) / batch_size / 3)),
+              steps_per_epoch=int(math.ceil(len(X) / batch_size / 1.5)),
               batch_size=batch_size,
               shuffle=True,
               epochs=epochs, validation_freq=1, verbose=1,
               validation_split=.1,
-              validation_batch_size=256,
+              validation_batch_size=batch_size,
               callbacks=callback, initial_epoch=epochs_done)  # config['initial_epoch'])
 
     model.save(f"{model_filename}/theModel")
