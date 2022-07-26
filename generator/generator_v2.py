@@ -94,7 +94,7 @@ class Generator(tf.keras.Model):
         reconstruction_loss = binary_crossentropy(K.flatten(actual), K.flatten(predicted))
         kl_loss = 1 + self._sigma - K.square(self._mu) - K.exp(self._sigma)
         kl_loss *= -.5
-        return reconstruction_loss * 6 + kl_loss * 8
+        return reconstruction_loss * 16 + kl_loss * 4
 
     @classmethod
     def load(cls, filename, latent_size: int = 512, input_shape: tuple = None):
