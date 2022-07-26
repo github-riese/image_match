@@ -82,12 +82,12 @@ class Generator(tf.keras.Model):
         inputs = self._generate_4(inputs)  # 8x8x256
         if training:
             inputs = self._noise_3(inputs)
-        inputs = self._generate_5(inputs)  # 40x40x128
-        inputs = self._generate_6(inputs)  # 40x40x128
+        inputs = self._generate_5(inputs)  # 16x40x128
+        inputs = self._generate_6(inputs)  # 16x40x128
         if training:
             inputs = self._noise_3(inputs)
-        inputs = self._generate_7(inputs)  # 80x80x96
-        inputs = self._generate_8(inputs)  # 80x80x96
+        inputs = self._generate_7(inputs)  # 16x80x96
+        inputs = self._generate_8(inputs)  # 16x80x96
         return self._output(inputs)  # 80x80x3
 
     def loss(self, actual, predicted):
@@ -109,7 +109,7 @@ class Generator(tf.keras.Model):
 
 
 if __name__ == '__main__':
-    latent_size = 768
+    latent_size = 1152
     model = Generator(latent_size=latent_size)
     model.build(input_shape=(None, 80, 80, 3))
     model.compile(optimizer=Adam(learning_rate=2.5e-3, beta_1=0.5, beta_2=0.75), loss=model.loss)

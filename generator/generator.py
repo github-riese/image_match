@@ -116,7 +116,7 @@ def generate_default_view(args: list):
     callback = PlottingCallback(display, validate, expect, losses, model_filename)
 
     epochs_done = config['initial_epoch']
-    model = ensure_model(model_filename, latent_size=768)
+    model = ensure_model(model_filename, latent_size=1152)
 
     batch_size = 128
     beta_1 = .9
