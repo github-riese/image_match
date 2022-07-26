@@ -20,9 +20,9 @@ class Generator(tf.keras.Model):
         self._sigma = None
 
         self._norm = Normalization()
-        self._noise_1 = GaussianNoise(.1)
+        self._noise_1 = GaussianNoise(.15)
         self._noise_2 = GaussianNoise(.05)
-        self._noise_3 = GaussianNoise(.01)
+        self._noise_3 = GaussianNoise(.025)
 
         self._vgg = VGG16(include_top=False, input_shape=(None, None, 3), weights='imagenet')
         self._vgg.trainable = False
@@ -42,9 +42,9 @@ class Generator(tf.keras.Model):
         self._generate_4 = Conv2DTranspose(256, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
         self._generate_5 = Conv2DTranspose(128, 5, 5, use_bias=False, activation='leaky_relu')
         self._generate_6 = Conv2DTranspose(128, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
-        self._generate_7 = Conv2DTranspose(96, 2, 2, use_bias=False, activation='leaky_relu')
-        self._generate_8 = Conv2DTranspose(96, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
-        self._output = Conv2DTranspose(3, 1, 1, use_bias=True, activation='sigmoid')
+        self._generate_7 = Conv2DTranspose(96, 2, 2, use_bias=True, activation='leaky_relu')
+        self._generate_8 = Conv2DTranspose(96, 2, 1, use_bias=True, activation='leaky_relu', padding='same')
+        self._output = Conv2DTranspose(3, 1, 1, use_bias=False, activation='sigmoid')
 
         self._latent.build(input_shape=input_shape)
 
@@ -74,27 +74,27 @@ class Generator(tf.keras.Model):
         if training:
             inputs = self._noise_2(inputs)
         inputs = self._reshape(inputs)  # 1x1xlatent
-        inputs = self._generate_1(inputs)  # 5x5x512
-        inputs = self._generate_2(inputs)  # 10x10x256
+        inputs = self._generate_1(inputs)  # 2x2x512
+        inputs = self._generate_2(inputs)  # 4x4x512
         if training:
             inputs = self._noise_3(inputs)
-        inputs = self._generate_3(inputs)  # 20x20x128
-        inputs = self._generate_4(inputs)  # 20x20x128
+        inputs = self._generate_3(inputs)  # 8x8x256
+        inputs = self._generate_4(inputs)  # 8x8x256
         if training:
             inputs = self._noise_3(inputs)
-        inputs = self._generate_5(inputs)  # 40x40x64
-        inputs = self._generate_6(inputs)  # 40x40x64
+        inputs = self._generate_5(inputs)  # 40x40x128
+        inputs = self._generate_6(inputs)  # 40x40x128
         if training:
             inputs = self._noise_3(inputs)
-        inputs = self._generate_7(inputs)  # 80x80x48
-        inputs = self._generate_8(inputs)  # 80x80x48
+        inputs = self._generate_7(inputs)  # 80x80x96
+        inputs = self._generate_8(inputs)  # 80x80x96
         return self._output(inputs)  # 80x80x3
 
     def loss(self, actual, predicted):
         reconstruction_loss = binary_crossentropy(K.flatten(actual), K.flatten(predicted))
         kl_loss = 1 + self._sigma - K.square(self._mu) - K.exp(self._sigma)
         kl_loss *= -.5
-        return reconstruction_loss * 8 + kl_loss * 2
+        return reconstruction_loss * 6 + kl_loss * 8
 
     @classmethod
     def load(cls, filename, latent_size: int = 512, input_shape: tuple = None):
@@ -109,7 +109,7 @@ class Generator(tf.keras.Model):
 
 
 if __name__ == '__main__':
-    latent_size = 2048
+    latent_size = 768
     model = Generator(latent_size=latent_size)
     model.build(input_shape=(None, 80, 80, 3))
     model.compile(optimizer=Adam(learning_rate=2.5e-3, beta_1=0.5, beta_2=0.75), loss=model.loss)
