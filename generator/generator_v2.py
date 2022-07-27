@@ -21,8 +21,8 @@ class Generator(tf.keras.Model):
 
         self._norm = Normalization()
         self._noise_1 = GaussianNoise(.15)
-        self._noise_2 = GaussianNoise(.05)
-        self._noise_3 = GaussianNoise(.025)
+        self._noise_2 = GaussianNoise(.1)
+        self._noise_3 = GaussianNoise(.05)
 
         self._vgg = VGG16(include_top=False, input_shape=(None, None, 3), weights='imagenet')
         self._vgg.trainable = False
@@ -36,14 +36,14 @@ class Generator(tf.keras.Model):
 
         self._reshape = Reshape(target_shape=(1, 1, latent_size))
 
-        self._generate_1 = Conv2DTranspose(512, 2, 2, use_bias=latent_size < 512, activation='leaky_relu')
-        self._generate_2 = Conv2DTranspose(512, 2, 2, use_bias=False, activation='leaky_relu')
-        self._generate_3 = Conv2DTranspose(256, 2, 2, use_bias=False, activation='leaky_relu')
-        self._generate_4 = Conv2DTranspose(256, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
-        self._generate_5 = Conv2DTranspose(128, 2, 2, use_bias=False, activation='leaky_relu')
-        self._generate_6 = Conv2DTranspose(128, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
-        self._generate_7 = Conv2DTranspose(96, 2, 1, use_bias=True, activation='leaky_relu', padding='same')
-        self._generate_8 = Conv2DTranspose(96, 2, 1, use_bias=True, activation='leaky_relu', padding='same')
+        self._generate_1 = Conv2DTranspose(1024, 2, 2, use_bias=latent_size < 1024, activation='leaky_relu')
+        self._generate_2 = Conv2DTranspose(1024, 2, 2, use_bias=False, activation='leaky_relu')
+        self._generate_3 = Conv2DTranspose(512, 2, 2, use_bias=False, activation='leaky_relu')
+        self._generate_4 = Conv2DTranspose(512, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
+        self._generate_5 = Conv2DTranspose(256, 2, 2, use_bias=False, activation='leaky_relu')
+        self._generate_6 = Conv2DTranspose(256, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
+        self._generate_7 = Conv2DTranspose(144, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
+        self._generate_8 = Conv2DTranspose(144, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
         self._output = Conv2DTranspose(3, 5, 5, use_bias=False, activation='sigmoid')
 
         self._latent.build(input_shape=input_shape)
@@ -74,20 +74,20 @@ class Generator(tf.keras.Model):
         if training:
             inputs = self._noise_2(inputs)
         inputs = self._reshape(inputs)  # 1x1xlatent
-        inputs = self._generate_1(inputs)  # 2x2x512
-        inputs = self._generate_2(inputs)  # 4x4x512
+        inputs = self._generate_1(inputs)  # 2x2x1024
+        inputs = self._generate_2(inputs)  # 4x4x1024
         if training:
             inputs = self._noise_3(inputs)
-        inputs = self._generate_3(inputs)  # 8x8x256
-        inputs = self._generate_4(inputs)  # 8x8x256
+        inputs = self._generate_3(inputs)  # 8x8x512
+        inputs = self._generate_4(inputs)  # 8x8x512
         if training:
             inputs = self._noise_3(inputs)
-        inputs = self._generate_5(inputs)  # 16x40x128
-        inputs = self._generate_6(inputs)  # 16x40x128
+        inputs = self._generate_5(inputs)  # 16x40x256
+        inputs = self._generate_6(inputs)  # 16x40x256
         if training:
             inputs = self._noise_3(inputs)
-        inputs = self._generate_7(inputs)  # 16x80x96
-        inputs = self._generate_8(inputs)  # 16x80x96
+        inputs = self._generate_7(inputs)  # 16x80x144
+        inputs = self._generate_8(inputs)  # 16x80x144
         return self._output(inputs)  # 80x80x3
 
     def loss(self, actual, predicted):
