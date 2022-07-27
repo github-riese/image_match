@@ -34,7 +34,8 @@ class Generator(tf.keras.Model):
 
         self._dropout = Dropout(rate=0.4)
 
-        self._reshape = Reshape(target_shape=(1, 1, latent_size))
+        self._dense = Dense(1024)
+        self._reshape = Reshape(target_shape=(1, 1, 1024))
 
         self._generate_1 = Conv2DTranspose(512, 2, 2, use_bias=False, activation='leaky_relu')
         self._generate_2 = Conv2DTranspose(512, 2, 2, use_bias=False, activation='leaky_relu')
@@ -72,8 +73,11 @@ class Generator(tf.keras.Model):
         self._sigma = self._latent_sigma(inputs)
         inputs = self._compute_latent((self._mu, self._sigma), training)
         if training:
+            inputs = self._dropout(inputs)
+        inputs = self._dense(inputs)
+        if training:
             inputs = self._noise_2(inputs)
-        inputs = self._reshape(inputs)  # 1x1xlatent
+        inputs = self._reshape(inputs)  # 1x1x1024
         inputs = self._generate_1(inputs)  # 2x2x512
         inputs = self._generate_2(inputs)  # 4x4x512
         if training:
