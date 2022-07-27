@@ -122,7 +122,7 @@ def generate_default_view(args: list):
     beta_1 = .82
     learning_rate = 5e-5 * (beta_1 ** epochs_done)
     model.compile(optimizer=Nadam(learning_rate=learning_rate, beta_1=beta_1, beta_2=0.9), loss=model.loss,
-                  metrics=['accuracy', 'mae', 'cosine_similarity'])
+                  metrics=[accuracy, 'mae'])
     model.fit(x=X, y=Y,
               steps_per_epoch=int(math.ceil(len(X) / batch_size / 1.5)),
               batch_size=batch_size,
