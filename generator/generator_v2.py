@@ -112,11 +112,20 @@ class Generator(tf.keras.Model):
         super(Generator, self).save_weights(filename, **kwargs)
 
 
+def accuracy(y_true, y_pred):
+    threshold = .05
+    shape = K.shape(y_true)
+    diff = tf.where(K.abs(tf.subtract(y_true, y_pred) - threshold) > 0, 1.0, 0.0)
+    total_pixels = tf.cast(tf.reduce_prod(shape), tf.float32)
+    return 1.0 - K.sum(diff) / total_pixels
+
+
 if __name__ == '__main__':
     latent_size = 1152
     model = Generator(latent_size=latent_size)
     model.build(input_shape=(None, 80, 80, 3))
-    model.compile(optimizer=Adam(learning_rate=5e-5, beta_1=0.82, beta_2=0.9), loss=model.loss)
+    model.compile(optimizer=Adam(learning_rate=5e-5, beta_1=0.82, beta_2=0.9),
+                  loss=model.loss, metrics=[accuracy, 'mae'])
     model.summary()
     inputs = np.zeros((32, 80, 80, 3), dtype=float)
     outputs = np.ones((32, 80, 80, 3), dtype=float)
@@ -124,7 +133,8 @@ if __name__ == '__main__':
     model.save_weights('/tmp/model')
     reloaded = Generator.load('/tmp/model', input_shape=(None, 80, 80, 3), latent_size=latent_size)
     print(f"reloaded. type of reloaded is {type(reloaded)}")
-    reloaded.compile(optimizer=Adam(learning_rate=5e-5, beta_1=0.82, beta_2=0.9), loss=reloaded.loss)
+    reloaded.compile(optimizer=Adam(learning_rate=5e-5, beta_1=0.82, beta_2=0.9),
+                     loss=reloaded.loss, metrics=[accuracy, 'mae'])
     reloaded.summary()
     reloaded.fit(x=inputs, y=outputs, epochs=1)
     y = reloaded.call(inputs, False)

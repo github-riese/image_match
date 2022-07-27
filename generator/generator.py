@@ -15,7 +15,7 @@ from torch.nn import Module
 
 from augmented_image_loader import AugmentedImageLoader
 from generator.dataset import Dataset
-from generator.generator_v2 import Generator
+from generator.generator_v2 import Generator, accuracy
 from generator.tf_generator import ImageGenerator
 from image_display import ImageDisplay
 from image_loader import ImageLoader
@@ -122,7 +122,7 @@ def generate_default_view(args: list):
     beta_1 = .82
     learning_rate = 5e-5 * (beta_1 ** epochs_done)
     model.compile(optimizer=Nadam(learning_rate=learning_rate, beta_1=beta_1, beta_2=0.9), loss=model.loss,
-                  metrics=['accuracy', 'mae'])
+                  metrics=[accuracy, 'mae'])
     model.fit(x=X, y=Y,
               steps_per_epoch=int(math.ceil(len(X) / batch_size / 1.5)),
               batch_size=batch_size,
