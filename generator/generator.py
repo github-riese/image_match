@@ -116,11 +116,11 @@ def generate_default_view(args: list):
     callback = PlottingCallback(display, validate, expect, losses, model_filename)
 
     epochs_done = config['initial_epoch']
-    model = ensure_model(model_filename, latent_size=1152)
+    model = ensure_model(model_filename, latent_size=1536)
 
     batch_size = 128
-    beta_1 = .82
-    learning_rate = 5e-5 * (beta_1 ** epochs_done)
+    beta_1 = .78
+    learning_rate = 6.25e-4 * (beta_1 ** epochs_done)
     model.compile(optimizer=Nadam(learning_rate=learning_rate, beta_1=beta_1, beta_2=0.9), loss=model.loss,
                   metrics=[accuracy, 'mae'])
     model.fit(x=X, y=Y,
