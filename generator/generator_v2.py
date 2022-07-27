@@ -36,15 +36,15 @@ class Generator(tf.keras.Model):
 
         self._reshape = Reshape(target_shape=(1, 1, latent_size))
 
-        self._generate_1 = Conv2DTranspose(1024, 2, 2, use_bias=latent_size < 1024, activation='leaky_relu')
-        self._generate_2 = Conv2DTranspose(1024, 2, 2, use_bias=False, activation='leaky_relu')
-        self._generate_3 = Conv2DTranspose(512, 2, 2, use_bias=False, activation='leaky_relu')
-        self._generate_4 = Conv2DTranspose(512, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
-        self._generate_5 = Conv2DTranspose(256, 2, 2, use_bias=False, activation='leaky_relu')
-        self._generate_6 = Conv2DTranspose(256, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
-        self._generate_7 = Conv2DTranspose(144, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
-        self._generate_8 = Conv2DTranspose(144, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
-        self._output = Conv2DTranspose(3, 5, 5, use_bias=False, activation='sigmoid')
+        self._generate_1 = Conv2DTranspose(512, 2, 2, use_bias=False, activation='leaky_relu')
+        self._generate_2 = Conv2DTranspose(512, 2, 2, use_bias=False, activation='leaky_relu')
+        self._generate_3 = Conv2DTranspose(256, 5, 5, use_bias=False, activation='leaky_relu')
+        self._generate_4 = Conv2DTranspose(256, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
+        self._generate_5 = Conv2DTranspose(128, 2, 2, use_bias=False, activation='leaky_relu')
+        self._generate_6 = Conv2DTranspose(128, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
+        self._generate_7 = Conv2DTranspose(72, 2, 2, use_bias=False, activation='leaky_relu')
+        self._generate_8 = Conv2DTranspose(72, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
+        self._output = Conv2DTranspose(3, 2, 1, use_bias=False, activation='sigmoid', padding='same')
 
         self._latent.build(input_shape=input_shape)
 
@@ -74,20 +74,20 @@ class Generator(tf.keras.Model):
         if training:
             inputs = self._noise_2(inputs)
         inputs = self._reshape(inputs)  # 1x1xlatent
-        inputs = self._generate_1(inputs)  # 2x2x1024
-        inputs = self._generate_2(inputs)  # 4x4x1024
+        inputs = self._generate_1(inputs)  # 2x2x512
+        inputs = self._generate_2(inputs)  # 4x4x512
         if training:
             inputs = self._noise_3(inputs)
-        inputs = self._generate_3(inputs)  # 8x8x512
-        inputs = self._generate_4(inputs)  # 8x8x512
+        inputs = self._generate_3(inputs)  # 20x20x256
+        inputs = self._generate_4(inputs)  # 20x20x256
         if training:
             inputs = self._noise_3(inputs)
-        inputs = self._generate_5(inputs)  # 16x40x256
-        inputs = self._generate_6(inputs)  # 16x40x256
+        inputs = self._generate_5(inputs)  # 40x40x128
+        inputs = self._generate_6(inputs)  # 40x40x128
         if training:
             inputs = self._noise_3(inputs)
-        inputs = self._generate_7(inputs)  # 16x80x144
-        inputs = self._generate_8(inputs)  # 16x80x144
+        inputs = self._generate_7(inputs)  # 80x80x72
+        inputs = self._generate_8(inputs)  # 80x80x72
         return self._output(inputs)  # 80x80x3
 
     def loss(self, actual, predicted):
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     latent_size = 1152
     model = Generator(latent_size=latent_size)
     model.build(input_shape=(None, 80, 80, 3))
-    model.compile(optimizer=Adam(learning_rate=2.5e-3, beta_1=0.5, beta_2=0.75), loss=model.loss)
+    model.compile(optimizer=Adam(learning_rate=5e-5, beta_1=0.82, beta_2=0.9), loss=model.loss)
     model.summary()
     inputs = np.zeros((32, 80, 80, 3), dtype=float)
     outputs = np.ones((32, 80, 80, 3), dtype=float)
@@ -120,7 +120,7 @@ if __name__ == '__main__':
     model.save_weights('/tmp/model')
     reloaded = Generator.load('/tmp/model', input_shape=(None, 80, 80, 3), latent_size=latent_size)
     print(f"reloaded. type of reloaded is {type(reloaded)}")
-    reloaded.compile(optimizer=Adam(learning_rate=2.5e-3, beta_1=0.5, beta_2=0.75), loss=reloaded.loss)
+    reloaded.compile(optimizer=Adam(learning_rate=5e-5, beta_1=0.82, beta_2=0.9), loss=reloaded.loss)
     reloaded.summary()
     reloaded.fit(x=inputs, y=outputs, epochs=1)
     y = reloaded.call(inputs, False)
