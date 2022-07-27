@@ -1,12 +1,8 @@
-from tensorflow import keras
-import math
-
 import numpy as np
 import tensorflow as tf
-from keras import regularizers
 from keras import backend as K
 from keras.applications.vgg16 import VGG16
-from keras.layers import Dense, Dropout, Flatten, Reshape, Conv2DTranspose, BatchNormalization, \
+from keras.layers import Dense, Dropout, Flatten, Reshape, Conv2DTranspose, \
     Lambda, Normalization, GaussianNoise
 from keras.losses import binary_crossentropy
 from keras.optimizer_v2.adam import Adam
@@ -125,7 +121,7 @@ if __name__ == '__main__':
     model = Generator(latent_size=latent_size)
     model.build(input_shape=(None, 80, 80, 3))
     model.compile(optimizer=Adam(learning_rate=5e-5, beta_1=0.82, beta_2=0.9),
-                  loss=model.loss, metrics=[accuracy, 'mae'])
+                  loss=model.loss, metrics=['accuracy', 'mae', 'cosine_similarity'])
     model.summary()
     inputs = np.zeros((32, 80, 80, 3), dtype=float)
     outputs = np.ones((32, 80, 80, 3), dtype=float)
@@ -134,7 +130,7 @@ if __name__ == '__main__':
     reloaded = Generator.load('/tmp/model', input_shape=(None, 80, 80, 3), latent_size=latent_size)
     print(f"reloaded. type of reloaded is {type(reloaded)}")
     reloaded.compile(optimizer=Adam(learning_rate=5e-5, beta_1=0.82, beta_2=0.9),
-                     loss=reloaded.loss, metrics=[accuracy, 'mae'])
+                     loss=reloaded.loss, metrics=['accuracy', 'mae', 'cosine_similarity'])
     reloaded.summary()
     reloaded.fit(x=inputs, y=outputs, epochs=1)
     y = reloaded.call(inputs, False)
