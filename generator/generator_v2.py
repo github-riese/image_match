@@ -50,13 +50,10 @@ class Generator(tf.keras.Model):
     @staticmethod
     def _compute_latent(x, training):
         mu, sigma = x
-        if training:
-            batch = K.shape(mu)[0]
-            dim = K.int_shape(mu)[1]
-            epsilon = K.random_normal(shape=(batch, dim))
-            return mu + K.exp(sigma / 2) * epsilon
-        else:
-            return mu + K.exp(sigma / 2)
+        batch = K.shape(mu)[0]
+        dim = K.int_shape(mu)[1]
+        epsilon = K.random_normal(shape=(batch, dim))
+        return mu + K.exp(sigma / 2) * epsilon
 
     def call(self, inputs, training=None, mask=None):
         inputs = self._norm(inputs)
@@ -71,7 +68,12 @@ class Generator(tf.keras.Model):
         self._sigma = self._latent_sigma(inputs)
         inputs = self._compute_latent((self._mu, self._sigma), training)
         if training:
+            inputs = self._dropout(inputs);
+        inputs = self._dense_1(inputs)
+        if training:
+            inputs = self._dropout(inputs)
             inputs = self._noise_2(inputs)
+        inputs = self._dense_2(inputs)
         inputs = self._reshape(inputs)  # 1x1xlatent
         inputs = self._generate_1(inputs)  # 2x2x512
         inputs = self._generate_2(inputs)  # 4x4x256
@@ -108,7 +110,7 @@ class Generator(tf.keras.Model):
 
 
 def accuracy(y_true, y_pred):
-    return 1 - tf.abs(cosine_similarity(y_true, y_pred))
+    return tf.abs(cosine_similarity(y_true, y_pred))
 
 
 if __name__ == '__main__':
