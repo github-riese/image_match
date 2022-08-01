@@ -8,14 +8,12 @@ import pandas as pd
 import tensorflow as tf
 import torch
 from keras.callbacks import Callback
-from keras.optimizer_v2.adam import Adam
-from keras.optimizer_v2.nadam import Nadam
 from matplotlib import pyplot as plt
 from torch.nn import Module
 
 from augmented_image_loader import AugmentedImageLoader
 from generator.dataset import Dataset
-from generator.generator_v2 import Generator, accuracy
+from generator.generator_v2 import Generator, accuracy, NoisyNadam
 from generator.tf_generator import ImageGenerator
 from image_display import ImageDisplay
 from image_loader import ImageLoader
@@ -41,6 +39,7 @@ class PlottingCallback(Callback):
         bamm = np.concatenate([self._validate.numpy(), bamm, self._expect], axis=0)
         self._display.show_images(bamm, int(math.ceil(bamm.shape[0] / 6)), losses=(logs['loss'], logs['val_loss']))
         self._display.save(f"snapshots/image_ep_{epoch + 1:03d}_{logs['loss']:.4f}.png")
+        self.model.optimizer.epoch = epoch
         if epoch % 5 == 4:
             self.model.save(f"{self._model_filename}/theModel")
             print("model saved.")
@@ -121,7 +120,7 @@ def generate_default_view(args: list):
     batch_size = 128
     beta_1 = .8
     learning_rate = 3e-4 * (beta_1 ** epochs_done)
-    model.compile(optimizer=Nadam(learning_rate=learning_rate, beta_1=beta_1, beta_2=0.75), loss=model.loss,
+    model.compile(optimizer=NoisyNadam(decay=.55, learning_rate=learning_rate, beta_1=beta_1, beta_2=0.75), loss=model.loss,
                   metrics=[accuracy, 'mae'])
     model.fit(x=X, y=Y,
               steps_per_epoch=int(math.ceil(len(X) / batch_size / 1.5)),

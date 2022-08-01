@@ -7,6 +7,21 @@ from keras.layers import Dense, Dropout, Flatten, Reshape, Conv2DTranspose, \
 from keras.losses import binary_crossentropy
 from keras.metrics import cosine_similarity
 from keras.optimizer_v2.adam import Adam
+from keras.optimizer_v2.nadam import Nadam
+
+
+class NoisyNadam(Nadam):
+    def __init__(self, decay, learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-7, amsgrad=False, name='Adam',
+                 **kwargs):
+        super().__init__(learning_rate, beta_1, beta_2, epsilon, amsgrad, name, **kwargs)
+        self.epoch = 0
+        self.decay = decay
+
+    def apply_gradients(self, grads_and_vars, name=None, experimental_aggregate_gradients=True):
+        stddev = 1 / ((1 + self.epoch) ** self.decay)
+        grads_and_vars = [(tf.add(gradient, tf.random.normal(stddev=stddev, mean=0., shape=gradient.shape)), var) for
+                          gradient, var in grads_and_vars]
+        return super().apply_gradients(grads_and_vars, name, experimental_aggregate_gradients)
 
 
 class Generator(tf.keras.Model):
@@ -18,8 +33,8 @@ class Generator(tf.keras.Model):
 
         self._norm = Normalization()
         self._noise_1 = GaussianNoise(.15)
-        self._noise_2 = GaussianNoise(.1)
-        self._noise_3 = GaussianNoise(.05)
+        self._noise_2 = GaussianNoise(.001)
+        self._noise_3 = GaussianNoise(.0005)
 
         self._vgg = VGG16(include_top=False, input_shape=(None, None, 3), weights='imagenet')
         self._vgg.trainable = False
@@ -56,9 +71,9 @@ class Generator(tf.keras.Model):
         return mu + K.exp(sigma / 2) * epsilon
 
     def call(self, inputs, training=None, mask=None):
-        inputs = self._norm(inputs)
         if training:
             inputs = self._noise_1(inputs)
+        inputs = self._norm(inputs)
         inputs = self._vgg(inputs)
         inputs = self._flatten(inputs)
         if training:
@@ -110,14 +125,21 @@ class Generator(tf.keras.Model):
 
 
 def accuracy(y_true, y_pred):
-    return tf.abs(cosine_similarity(y_true, y_pred))
+    threshold = .1
+    step = tf.abs(tf.subtract(y_true, y_pred)) - (threshold, threshold, threshold)
+    step = tf.reduce_all(tf.less(step, (0., 0., 0.)), axis=3)
+    good_pixels = tf.where(step, 1.0, 0.0)
+    good_pixels = tf.reduce_sum(good_pixels)
+    shape = tf.shape(y_pred)
+    total_pixels = tf.cast(shape[0] * shape[1] * shape[2], tf.float32)
+    return good_pixels / total_pixels
 
 
 if __name__ == '__main__':
     latent_size = 1536
     model = Generator(latent_size=latent_size)
     model.build(input_shape=(None, 80, 80, 3))
-    model.compile(optimizer=Adam(learning_rate=5e-5, beta_1=0.82, beta_2=0.9),
+    model.compile(optimizer=NoisyNadam(learning_rate=5e-5, beta_1=0.82, beta_2=0.9),
                   loss=model.loss, metrics=[accuracy, 'mae'])
     model.summary()
     inputs = np.zeros((32, 80, 80, 3), dtype=float)
