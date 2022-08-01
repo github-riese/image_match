@@ -120,7 +120,10 @@ def generate_default_view(args: list):
     batch_size = 128
     beta_1 = .8
     learning_rate = 3e-4 * (beta_1 ** epochs_done)
-    model.compile(optimizer=NoisyNadam(decay=.55, learning_rate=learning_rate, beta_1=beta_1, beta_2=0.75), loss=model.loss,
+    model.compile(optimizer=NoisyNadam(strength=.01, sustain=.85,
+                                       learning_rate=learning_rate,
+                                       beta_1=beta_1, beta_2=0.75),
+                  loss=model.loss,
                   metrics=[accuracy, 'mae'])
     model.fit(x=X, y=Y,
               steps_per_epoch=int(math.ceil(len(X) / batch_size / 1.5)),
@@ -138,7 +141,8 @@ def generate_default_view(args: list):
 
 def ensure_model(model_filename, latent_size: int = 256) -> tf.keras.Model:
     if os.path.exists(model_filename) and os.path.exists(model_filename + "/theModel.index"):
-        model = Generator.load(filename=f"{model_filename}/theModel", latent_size=latent_size, input_shape=(None, 80, 80, 3))
+        model = Generator.load(filename=f"{model_filename}/theModel", latent_size=latent_size,
+                               input_shape=(None, 80, 80, 3))
     else:
         if not os.path.exists(model_filename):
             os.mkdir(f"{model_filename}")
