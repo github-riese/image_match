@@ -45,10 +45,6 @@ class Generator(tf.keras.Model):
         self._latent_mean = Dense(latent_size)
         self._latent_log_var = Dense(latent_size)
 
-        self._dense_1 = Dense(latent_size)
-        self._dropout = Dropout(rate=0.4)
-        self._dense_2 = Dense(latent_size)
-
         self._reshape = Reshape(target_shape=(1, 1, latent_size))
 
         self._generate_1 = Conv2DTranspose(512, 2, 2, use_bias=False, activation='leaky_relu')
@@ -77,19 +73,10 @@ class Generator(tf.keras.Model):
         inputs = self._norm(inputs)
         inputs = self._vgg(inputs)
         inputs = self._flatten(inputs)
-        if training:
-            inputs = self._dropout(inputs)
 
         self._mean = self._latent_mean(inputs)
         self._log_var = self._latent_log_var(inputs)
         inputs = self._compute_latent((self._mean, self._log_var), training)
-        if training:
-            inputs = self._dropout(inputs)
-        inputs = self._dense_1(inputs)
-        if training:
-            inputs = self._dropout(inputs)
-
-        inputs = self._dense_2(inputs)
         inputs = self._reshape(inputs)  # 1x1xlatent
         inputs = self._generate_1(inputs)  # 2x2x512
         inputs = self._generate_2(inputs)  # 4x4x256
@@ -113,7 +100,7 @@ class Generator(tf.keras.Model):
         # reconstruction_loss = binary_crossentropy(K.flatten(actual), K.flatten(predicted))
         # kl_loss = 1 + self._sigma - K.square(self._mu) - K.exp(self._sigma)
         # kl_loss *= -.5
-        kl_loss = -0.2 * (1 + self._log_var - tf.square(self._mean) - tf.exp(self._log_var))
+        kl_loss = -0.5 * (1 + self._log_var - tf.square(self._mean) - tf.exp(self._log_var))
         kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis=1))
         return reconstruction_loss + kl_loss
 
