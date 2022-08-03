@@ -5,6 +5,7 @@ from keras.applications.vgg16 import VGG16
 from keras.layers import Dense, Flatten, Reshape, Conv2DTranspose, \
     Lambda, Normalization, GaussianNoise
 from keras.optimizer_v2.nadam import Nadam
+from torch.nn import Dropout
 
 
 class NoisyNadam(Nadam):
@@ -34,6 +35,8 @@ class Generator(tf.keras.Model):
 
         self._norm = Normalization()
         self._noise_1 = GaussianNoise(.15)
+        self._noise_2 = GaussianNoise(.002)
+        self._dropout = Dropout(.45)
 
         self._vgg = VGG16(include_top=False, input_shape=(None, None, 3), weights='imagenet', pooling='max')
         self._vgg.trainable = False
@@ -51,9 +54,9 @@ class Generator(tf.keras.Model):
         self._generate_3 = Conv2DTranspose(128, 2, 2, use_bias=False, activation='leaky_relu')
         self._generate_4 = Conv2DTranspose(96, 3, 1, use_bias=False, activation='leaky_relu', padding='same')
         self._generate_5 = Conv2DTranspose(72, 2, 2, use_bias=False, activation='leaky_relu')
-        self._generate_6 = Conv2DTranspose(64, 3, 1, use_bias=False, activation='leaky_relu', padding='same')
+        self._generate_6 = Conv2DTranspose(64, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
         self._generate_7 = Conv2DTranspose(48, 2, 2, use_bias=False, activation='leaky_relu')
-        self._generate_8 = Conv2DTranspose(48, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
+        self._generate_8 = Conv2DTranspose(24, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
         self._output = Conv2DTranspose(3, 2, 1, use_bias=False, activation='sigmoid', padding='same')
 
         self._latent.build(input_shape=input_shape)
@@ -75,25 +78,34 @@ class Generator(tf.keras.Model):
         inputs = self._norm(inputs)
         inputs = self._vgg(inputs)
         inputs = self._flatten(inputs)
+        if training:
+            inputs = self._dropout(inputs);
         inputs = self._dense_1(inputs)  # bottleneck
 
         self._mean = self._latent_mean(inputs)
         self._log_var = self._latent_log_var(inputs)
         inputs = self._compute_latent((self._mean, self._log_var), training)
-
+        if training:
+            inputs = self._dropout(inputs);
         inputs = self._dense_2(inputs)  #
 
         inputs = self._reshape(inputs)  # 2x2x512
         inputs = self._generate_2(inputs)  # 4x4x256
 
+        if training:
+            inputs = self._noise_2
         inputs = self._generate_3(inputs)  # 20x20x128
         inputs = self._generate_4(inputs)  # 20x20x96
 
+        if training:
+            inputs = self._noise_2
         inputs = self._generate_5(inputs)  # 40x40x72
         inputs = self._generate_6(inputs)  # 40x40x64
 
+        if training:
+            inputs = self._noise_2
         inputs = self._generate_7(inputs)  # 80x80x48
-        inputs = self._generate_8(inputs)  # 80x80x48
+        inputs = self._generate_8(inputs)  # 80x80x24
         return self._output(inputs)  # 80x80x3
 
     def loss(self, actual, predicted):
@@ -117,8 +129,11 @@ class Generator(tf.keras.Model):
             reloaded.build(input_shape=input_shape)
         return reloaded
 
-    def save(self, filename, **kwargs):
-        super(Generator, self).save_weights(filename, **kwargs)
+    def save(self, filename, fixed: bool = False, **kwargs):
+        if fixed:
+            super(Generator, self).save(filename, **kwargs)
+        else:
+            super(Generator, self).save_weights(filename, **kwargs)
 
 
 def accuracy(y_true, y_pred):

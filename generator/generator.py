@@ -119,9 +119,9 @@ def generate_default_view(args: list):
 
     batch_size = 128
     beta_1 = .9
-    damping = beta_1 ** epochs_done
-    learning_rate = 2.25e-4 * damping
-    gradient_noise = .021 * damping
+    dampening = beta_1 ** epochs_done
+    learning_rate = 2.25e-4 * dampening
+    gradient_noise = .025 * dampening
     model.compile(optimizer=NoisyNadam(strength=gradient_noise, sustain=beta_1,
                                        learning_rate=learning_rate,
                                        beta_1=beta_1, beta_2=0.72),
