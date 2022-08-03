@@ -118,15 +118,17 @@ def generate_default_view(args: list):
     model = ensure_model(model_filename, latent_size=2048)
 
     batch_size = 128
-    beta_1 = .8
-    learning_rate = 3e-4 * (beta_1 ** epochs_done)
-    model.compile(optimizer=NoisyNadam(strength=.015, sustain=.8,
+    beta_1 = .9
+    damping = beta_1 ** epochs_done
+    learning_rate = 2.25e-4 * damping
+    gradient_noise = .021 * damping
+    model.compile(optimizer=NoisyNadam(strength=gradient_noise, sustain=beta_1,
                                        learning_rate=learning_rate,
-                                       beta_1=beta_1, beta_2=0.75),
+                                       beta_1=beta_1, beta_2=0.72),
                   loss=model.loss,
                   metrics=[accuracy, 'mae'])
     model.fit(x=X, y=Y,
-              steps_per_epoch=int(math.ceil(len(X) / batch_size / 2.4)),
+              steps_per_epoch=int(math.ceil(len(X) / batch_size / 1.9)),
               batch_size=batch_size,
               shuffle=True,
               epochs=epochs, validation_freq=1, verbose=1,
