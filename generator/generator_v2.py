@@ -19,10 +19,10 @@ class NoisyNadam(Nadam):
 
     def apply_gradients(self, grads_and_vars, name=None, experimental_aggregate_gradients=True):
         if self.strength > 0:
-            stddev = self.strength / (self.sustain ** self.epoch)
+            stddev = self.strength * (self.sustain ** self.epoch)
             layers = len(grads_and_vars)
             grads_and_vars = [
-                (tf.add(gradient, tf.random.normal(stddev=stddev * (self.sustain ** (layers - n - 1)), mean=0., shape=gradient.shape)),
+                (tf.add(gradient, tf.random.normal(stddev=stddev, mean=0., shape=gradient.shape)),
                  var) for n, (gradient, var) in enumerate(grads_and_vars)]
         return super().apply_gradients(grads_and_vars, name, experimental_aggregate_gradients)
 
