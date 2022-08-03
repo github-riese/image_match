@@ -2,9 +2,8 @@ import numpy as np
 import tensorflow as tf
 from keras import backend as K
 from keras.applications.vgg16 import VGG16
-from keras.layers import Dense, Dropout, Flatten, Reshape, Conv2DTranspose, \
+from keras.layers import Dense, Flatten, Reshape, Conv2DTranspose, \
     Lambda, Normalization, GaussianNoise
-from keras.losses import binary_crossentropy
 from keras.optimizer_v2.nadam import Nadam
 
 
@@ -20,7 +19,6 @@ class NoisyNadam(Nadam):
     def apply_gradients(self, grads_and_vars, name=None, experimental_aggregate_gradients=True):
         if self.strength > 0:
             stddev = self.strength * (self.sustain ** self.epoch)
-            layers = len(grads_and_vars)
             grads_and_vars = [
                 (tf.add(gradient, tf.random.normal(stddev=stddev, mean=0., shape=gradient.shape)),
                  var) for n, (gradient, var) in enumerate(grads_and_vars)]
@@ -40,14 +38,15 @@ class Generator(tf.keras.Model):
         self._vgg = VGG16(include_top=False, input_shape=(None, None, 3), weights='imagenet', pooling='max')
         self._vgg.trainable = False
         self._flatten = Flatten()
+        self._dense_1 = Dense(512, use_bias=False, activation='leaky_relu')
+        self._dense_2 = Dense(2 * 2 * 512, use_bias=False, activation='leaky_relu')
 
         self._latent = Lambda(self._compute_latent, output_shape=(latent_size,))
         self._latent_mean = Dense(latent_size)
         self._latent_log_var = Dense(latent_size)
 
-        self._reshape = Reshape(target_shape=(1, 1, latent_size))
+        self._reshape = Reshape(target_shape=(2, 2, 512))
 
-        self._generate_1 = Conv2DTranspose(512, 2, 2, use_bias=False, activation='leaky_relu')
         self._generate_2 = Conv2DTranspose(256, 5, 5, use_bias=False, activation='leaky_relu')
         self._generate_3 = Conv2DTranspose(128, 2, 2, use_bias=False, activation='leaky_relu')
         self._generate_4 = Conv2DTranspose(96, 3, 1, use_bias=False, activation='leaky_relu', padding='same')
@@ -62,9 +61,12 @@ class Generator(tf.keras.Model):
     @staticmethod
     def _compute_latent(x, training):
         mean, log_var = x
-        batch = K.shape(mean)[0]
-        dim = K.int_shape(mean)[1]
-        epsilon = K.random_normal(shape=(batch, dim))
+        if training:
+            batch = K.shape(mean)[0]
+            dim = K.int_shape(mean)[1]
+            epsilon = K.random_normal(shape=(batch, dim))
+        else:
+            epsilon = 1.0
         return mean + K.exp(log_var / 2) * epsilon
 
     def call(self, inputs, training=None, mask=None):
@@ -73,12 +75,15 @@ class Generator(tf.keras.Model):
         inputs = self._norm(inputs)
         inputs = self._vgg(inputs)
         inputs = self._flatten(inputs)
+        inputs = self._dense_1(inputs)  # bottleneck
 
         self._mean = self._latent_mean(inputs)
         self._log_var = self._latent_log_var(inputs)
         inputs = self._compute_latent((self._mean, self._log_var), training)
-        inputs = self._reshape(inputs)  # 1x1xlatent
-        inputs = self._generate_1(inputs)  # 2x2x512
+
+        inputs = self._dense_2(inputs)  #
+
+        inputs = self._reshape(inputs)  # 2x2x512
         inputs = self._generate_2(inputs)  # 4x4x256
 
         inputs = self._generate_3(inputs)  # 20x20x128
