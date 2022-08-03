@@ -3,9 +3,8 @@ import tensorflow as tf
 from keras import backend as K
 from keras.applications.vgg16 import VGG16
 from keras.layers import Dense, Flatten, Reshape, Conv2DTranspose, \
-    Lambda, Normalization, GaussianNoise
+    Lambda, Normalization, GaussianNoise, Dropout
 from keras.optimizer_v2.nadam import Nadam
-from torch.nn import Dropout
 
 
 class NoisyNadam(Nadam):
@@ -79,31 +78,31 @@ class Generator(tf.keras.Model):
         inputs = self._vgg(inputs)
         inputs = self._flatten(inputs)
         if training:
-            inputs = self._dropout(inputs);
+            inputs = self._dropout(inputs)
         inputs = self._dense_1(inputs)  # bottleneck
 
         self._mean = self._latent_mean(inputs)
         self._log_var = self._latent_log_var(inputs)
         inputs = self._compute_latent((self._mean, self._log_var), training)
         if training:
-            inputs = self._dropout(inputs);
+            inputs = self._dropout(inputs)
         inputs = self._dense_2(inputs)  #
 
         inputs = self._reshape(inputs)  # 2x2x512
         inputs = self._generate_2(inputs)  # 4x4x256
 
         if training:
-            inputs = self._noise_2
+            inputs = self._noise_2(inputs)
         inputs = self._generate_3(inputs)  # 20x20x128
         inputs = self._generate_4(inputs)  # 20x20x96
 
         if training:
-            inputs = self._noise_2
+            inputs = self._noise_2(inputs)
         inputs = self._generate_5(inputs)  # 40x40x72
         inputs = self._generate_6(inputs)  # 40x40x64
 
         if training:
-            inputs = self._noise_2
+            inputs = self._noise_2(inputs)
         inputs = self._generate_7(inputs)  # 80x80x48
         inputs = self._generate_8(inputs)  # 80x80x24
         return self._output(inputs)  # 80x80x3
