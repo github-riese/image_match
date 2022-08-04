@@ -33,9 +33,9 @@ class Generator(tf.keras.Model):
         self._log_var = None
 
         self._norm = Normalization()
-        self._noise_1 = GaussianNoise(.15)
-        self._noise_2 = GaussianNoise(.002)
-        self._dropout = Dropout(.45)
+        self._noise_1 = GaussianNoise(.45)
+        self._noise_2 = GaussianNoise(.02)
+        self._dropout = Dropout(.5)
 
         self._vgg = VGG16(include_top=False, input_shape=(None, None, 3), weights='imagenet', pooling='max')
         self._vgg.trainable = False
@@ -63,12 +63,9 @@ class Generator(tf.keras.Model):
     @staticmethod
     def _compute_latent(x, training):
         mean, log_var = x
-        if training:
-            batch = K.shape(mean)[0]
-            dim = K.int_shape(mean)[1]
-            epsilon = K.random_normal(shape=(batch, dim))
-        else:
-            epsilon = 1.0
+        batch = K.shape(mean)[0]
+        dim = K.int_shape(mean)[1]
+        epsilon = K.random_normal(shape=(batch, dim))
         return mean + K.exp(log_var / 2) * epsilon
 
     def call(self, inputs, training=None, mask=None):
