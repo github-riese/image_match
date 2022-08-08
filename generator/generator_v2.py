@@ -5,6 +5,7 @@ from keras.applications.vgg16 import VGG16
 from keras.layers import Dense, Flatten, Reshape, Conv2DTranspose, \
     Lambda, Normalization, GaussianNoise, Dropout
 from keras.optimizer_v2.nadam import Nadam
+from keras_contrib.layers.normalization.groupnormalization import GroupNormalization
 
 
 class NoisyNadam(Nadam):
@@ -33,27 +34,29 @@ class Generator(tf.keras.Model):
         self._log_var = None
 
         self._norm = Normalization()
+        self._noise_1 = GaussianNoise(.25)
+
         self._vgg = VGG16(include_top=False, input_shape=(None, None, 3), weights='imagenet')
         self._vgg.trainable = False
         self._flatten = Flatten()
 
         self._latent = Lambda(self._compute_latent, output_shape=(latent_size,))
-        self._latent_mean = Dense(latent_size, kernel_regularizer=regularizers.l2(0.04))
-        self._latent_log_var = Dense(latent_size, kernel_regularizer=regularizers.l2(0.04))
+        self._latent_mean = Dense(latent_size, kernel_regularizer=regularizers.l2(0.08))
+        self._latent_log_var = Dense(latent_size, kernel_regularizer=regularizers.l2(0.06))
 
-        self._dense1 = Dense(latent_size, activation='leaky_relu', kernel_regularizer=regularizers.l2(0.03))
-        self._dropout = Dropout(rate=0.4)
-        self._dense2 = Dense(latent_size, activation='leaky_relu', kernel_regularizer=regularizers.l2(0.03))
+        self._dense1 = Dense(latent_size, activation='leaky_relu', kernel_regularizer=regularizers.l2(0.05))
+        self._dropout = Dropout(rate=0.5)
+        self._dense2 = Dense(latent_size, activation='leaky_relu', kernel_regularizer=regularizers.l2(0.05))
 
         self._reshape = Reshape(target_shape=(1, 1, latent_size))
 
         self._generate_1 = Conv2DTranspose(512, 2, 2, use_bias=False, activation='leaky_relu',
-                                           kernel_regularizer=regularizers.l2(0.02))
+                                           kernel_regularizer=regularizers.l2(0.04))
         self._generate_2 = Conv2DTranspose(256, 5, 5, use_bias=False,
                                            activation='leaky_relu')
         self._generate_3 = Conv2DTranspose(128, 2, 2, use_bias=False,
                                            activation='leaky_relu',
-                                           kernel_regularizer=regularizers.l2(0.02))
+                                           kernel_regularizer=regularizers.l2(0.03))
         self._generate_4 = Conv2DTranspose(96, 2, 1, use_bias=False, activation='leaky_relu', padding='same')
         self._generate_5 = Conv2DTranspose(72, 2, 2, use_bias=False, activation='leaky_relu',
                                            kernel_regularizer=regularizers.l2(0.02))
@@ -76,12 +79,18 @@ class Generator(tf.keras.Model):
         return mean + K.exp(log_var / 2) * epsilon
 
     def call(self, inputs, training=None, mask=None):
+        if training:
+            inputs = self._noise_1(inputs)
         inputs = self._norm(inputs)
         inputs = self._vgg(inputs)
         inputs = self._flatten(inputs)
+        if training:
+            inputs = self._dropout(inputs)
         self._mean = self._latent_mean(inputs)
         self._log_var = self._latent_log_var(inputs)
         inputs = self._compute_latent((self._mean, self._log_var), training=training)
+        if training:
+            inputs = self._dropout(inputs)
         inputs = self._dense1(inputs)
         if training:
             inputs = self._dropout(inputs)
