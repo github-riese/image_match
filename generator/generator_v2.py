@@ -20,8 +20,9 @@ class NoisyNadam(Nadam):
     def apply_gradients(self, grads_and_vars, name=None, experimental_aggregate_gradients=True):
         if self.strength > 0:
             stddev = self.strength * (self.sustain ** self.epoch)
+            layers = len(grads_and_vars)
             grads_and_vars = [
-                (tf.add(gradient, tf.random.normal(stddev=stddev, mean=0., shape=gradient.shape)),
+                (tf.add(gradient, tf.random.normal(stddev=stddev * 1.05 ** (layers - n), mean=0., shape=gradient.shape)),
                  var) for n, (gradient, var) in enumerate(grads_and_vars)]
         return super().apply_gradients(grads_and_vars, name, experimental_aggregate_gradients)
 
@@ -34,19 +35,18 @@ class Generator(tf.keras.Model):
         self._log_var = None
 
         self._norm = Normalization()
-        self._noise_1 = GaussianNoise(.25)
 
         self._vgg = VGG16(include_top=False, input_shape=(None, None, 3), weights='imagenet')
         self._vgg.trainable = False
         self._flatten = Flatten()
 
         self._latent = Lambda(self._compute_latent, output_shape=(latent_size,))
-        self._latent_mean = Dense(latent_size, kernel_regularizer=regularizers.l2(0.08))
-        self._latent_log_var = Dense(latent_size, kernel_regularizer=regularizers.l2(0.06))
+        self._latent_mean = Dense(latent_size, kernel_regularizer=regularizers.l1(0.05))
+        self._latent_log_var = Dense(latent_size, kernel_regularizer=regularizers.l1(0.05))
 
-        self._dense1 = Dense(latent_size, activation='leaky_relu', kernel_regularizer=regularizers.l2(0.05))
+        self._dense1 = Dense(latent_size, activation='leaky_relu', kernel_regularizer=regularizers.l1(0.04))
         self._dropout = Dropout(rate=0.5)
-        self._dense2 = Dense(latent_size, activation='leaky_relu', kernel_regularizer=regularizers.l2(0.05))
+        self._dense2 = Dense(latent_size, activation='leaky_relu', kernel_regularizer=regularizers.l1(0.04))
 
         self._reshape = Reshape(target_shape=(1, 1, latent_size))
 
@@ -63,9 +63,9 @@ class Generator(tf.keras.Model):
         self._generate_6 = Conv2DTranspose(64, 2, 1, use_bias=False, activation='leaky_relu', padding='same',
                                            kernel_regularizer=regularizers.l2(0.015))
         self._generate_7 = Conv2DTranspose(48, 2, 2, use_bias=False, activation='leaky_relu',
-                                           kernel_regularizer=regularizers.l2(0.015))
+                                           kernel_regularizer=regularizers.l2(0.01))
         self._generate_8 = Conv2DTranspose(48, 2, 1, use_bias=False, activation='leaky_relu', padding='same',
-                                           kernel_regularizer=regularizers.l2(0.015))
+                                           kernel_regularizer=regularizers.l2(0.005))
         self._output = Conv2DTranspose(3, 1, 1, use_bias=True, activation='sigmoid')
 
         self._latent.build(input_shape=input_shape)
@@ -73,14 +73,15 @@ class Generator(tf.keras.Model):
     @staticmethod
     def _compute_latent(x, training):
         mean, log_var = x
-        batch = K.shape(mean)[0]
-        dim = K.int_shape(mean)[1]
-        epsilon = K.random_normal(shape=(batch, dim))
+        if training:
+            batch = K.shape(mean)[0]
+            dim = K.int_shape(mean)[1]
+            epsilon = K.random_normal(shape=(batch, dim))
+        else:
+            epsilon = 1.0
         return mean + K.exp(log_var / 2) * epsilon
 
     def call(self, inputs, training=None, mask=None):
-        if training:
-            inputs = self._noise_1(inputs)
         inputs = self._norm(inputs)
         inputs = self._vgg(inputs)
         inputs = self._flatten(inputs)
@@ -88,6 +89,7 @@ class Generator(tf.keras.Model):
             inputs = self._dropout(inputs)
         self._mean = self._latent_mean(inputs)
         self._log_var = self._latent_log_var(inputs)
+
         inputs = self._compute_latent((self._mean, self._log_var), training=training)
         if training:
             inputs = self._dropout(inputs)
@@ -112,9 +114,6 @@ class Generator(tf.keras.Model):
                 tf.keras.losses.binary_crossentropy(actual, predicted), axis=(1, 2)
             )
         )
-        # reconstruction_loss = binary_crossentropy(K.flatten(actual), K.flatten(predicted))
-        # kl_loss = 1 + self._sigma - K.square(self._mu) - K.exp(self._sigma)
-        # kl_loss *= -.5
         kl_loss = -0.5 * (1 + self._log_var - tf.square(self._mean) - tf.exp(self._log_var))
         kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis=1))
         return reconstruction_loss + kl_loss
@@ -146,7 +145,7 @@ def accuracy(y_true, y_pred):
 
 
 if __name__ == '__main__':
-    latent_size = 1024
+    latent_size = 794
     model = Generator(latent_size=latent_size)
     model.build(input_shape=(None, 80, 80, 3))
     model.compile(optimizer=NoisyNadam(strength=.55, sustain=.9, learning_rate=5e-5, beta_1=0.82, beta_2=0.9),

@@ -115,11 +115,11 @@ def generate_default_view(args: list):
     callback = PlottingCallback(display, validate, expect, losses, model_filename)
 
     epochs_done = config['initial_epoch']
-    model = ensure_model(model_filename, latent_size=1024)
+    model = ensure_model(model_filename, latent_size=794)
 
     batch_size = 128
     beta_1 = .92
-    noise_beta = .97
+    noise_beta = .92
     lr_dampening = beta_1 ** epochs_done
     noise_dampening = noise_beta ** epochs_done
     learning_rate = 5e-4 * lr_dampening
