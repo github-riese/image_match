@@ -118,11 +118,11 @@ def generate_default_view(args: list):
     model = ensure_model(model_filename, latent_size=794)
 
     batch_size = 128
-    beta_1 = .92
-    noise_beta = .92
+    beta_1 = .94
+    noise_beta = .8
     lr_dampening = beta_1 ** epochs_done
     noise_dampening = noise_beta ** epochs_done
-    learning_rate = 5e-4 * lr_dampening
+    learning_rate = 6e-4 * lr_dampening
     gradient_noise = .01 * noise_dampening
     model.compile(optimizer=NoisyNadam(strength=gradient_noise, sustain=noise_beta,
                                        learning_rate=learning_rate,
