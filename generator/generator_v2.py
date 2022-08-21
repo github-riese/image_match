@@ -63,20 +63,20 @@ class Generator(tf.keras.Model):
         self._latent_mean = Dense(latent_size, activity_regularizer=regularizers.l1(0.05))
         self._latent_log_var = Dense(latent_size, activity_regularizer=regularizers.l1(0.05))
 
-        self._dense1 = Dense(latent_size, activation='leaky_relu', activity_regularizer=regularizers.l1(0.025))
-        self._dense2 = Dense(latent_size, activation='leaky_relu', activity_regularizer=regularizers.l1(0.025))
+#        self._dense1 = Dense(latent_size, activation='leaky_relu', activity_regularizer=regularizers.l1(0.025))
+#        self._dense2 = Dense(latent_size, activation='leaky_relu', activity_regularizer=regularizers.l1(0.025))
 
         self._reshape = Reshape(target_shape=(1, 1, latent_size))
 
         self._generate_1 = Conv2DTranspose(512, 2, 2, use_bias=True, activation='leaky_relu',
                                            activity_regularizer=regularizers.l2(0.02))
-        self._generate_2 = Conv2DTranspose(256, 5, 5, use_bias=True, activation='leaky_relu')
+        self._generate_2 = Conv2DTranspose(256, 2, 2, use_bias=True, activation='leaky_relu')
         self._generate_3 = Conv2DTranspose(128, 2, 2, use_bias=True, activation='leaky_relu')
         self._generate_4 = Conv2DTranspose(96, 2, 1, use_bias=True, activation='leaky_relu', padding='same')
-        self._generate_5 = Conv2DTranspose(72, 2, 2, use_bias=True, activation='leaky_relu')
+        self._generate_5 = Conv2DTranspose(72, 5, 5, use_bias=True, activation='leaky_relu')
         self._generate_6 = Conv2DTranspose(64, 2, 1, use_bias=True, activation='leaky_relu', padding='same')
         self._generate_7 = Conv2DTranspose(48, 2, 2, use_bias=True, activation='leaky_relu')
-        self._generate_8 = Conv2DTranspose(48, 2, 1, use_bias=True, activation='leaky_relu', padding='same')
+        self._generate_8 = Conv2DTranspose(48, 4, 4, use_bias=True, activation='leaky_relu', padding='same')
         self._output = Conv2DTranspose(3, 1, 1, use_bias=True, activation='sigmoid')
 
         self._latent.build(input_shape=input_shape)
@@ -97,22 +97,22 @@ class Generator(tf.keras.Model):
         if training:
             inputs = self._noise(inputs)
         inputs = self._conv_1(inputs)
-        inputs = self._conv_2(inputs)
+#        inputs = self._conv_2(inputs)
         inputs = self._pool_1(inputs)
         if training:
             inputs = self._noise(inputs)
         inputs = self._conv_3(inputs)
-        inputs = self._conv_4(inputs)
+#        inputs = self._conv_4(inputs)
         inputs = self._pool_2(inputs)
         if training:
             inputs = self._noise(inputs)
         inputs = self._conv_5(inputs)
-        inputs = self._conv_6(inputs)
+#        inputs = self._conv_6(inputs)
         inputs = self._pool_3(inputs)
         if training:
             inputs = self._noise(inputs)
         inputs = self._conv_7(inputs)
-        inputs = self._conv_8(inputs)
+#        inputs = self._conv_8(inputs)
         inputs = self._pool_4(inputs)
         # inputs = self._vgg(inputs)
         inputs = self._flatten(inputs)
@@ -124,17 +124,17 @@ class Generator(tf.keras.Model):
         inputs = self._compute_latent((self._mean, self._log_var), training=training)
         if training:
             inputs = self._dropout(inputs)
-        inputs = self._dense1(inputs)
-        if training:
-            inputs = self._dropout(inputs)
-        inputs = self._dense2(inputs)
+#        inputs = self._dense1(inputs)
+#        if training:
+#            inputs = self._dropout(inputs)
+#        inputs = self._dense2(inputs)
         inputs = self._reshape(inputs)  # 1x1xlatent
-        inputs = self._generate_1(inputs)  # 2x2x512
-        inputs = self._generate_2(inputs)  # 10x10x256
+#        inputs = self._generate_1(inputs)  # 2x2x512
+#        inputs = self._generate_2(inputs)  # 10x10x256
         inputs = self._generate_3(inputs)  # 20x20x128
-        inputs = self._generate_4(inputs)  # 20x20x96
+#        inputs = self._generate_4(inputs)  # 20x20x96
         inputs = self._generate_5(inputs)  # 40x40x72
-        inputs = self._generate_6(inputs)  # 40x40x64
+#        inputs = self._generate_6(inputs)  # 40x40x64
         inputs = self._generate_7(inputs)  # 80x80x48
         inputs = self._generate_8(inputs)  # 80x80x48
         return self._output(inputs)  # 80x80x3

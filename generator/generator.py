@@ -8,6 +8,7 @@ import pandas as pd
 import tensorflow as tf
 import torch
 from keras.callbacks import Callback
+from keras.optimizer_v2.nadam import Nadam
 from matplotlib import pyplot as plt
 from torch.nn import Module
 
@@ -118,15 +119,14 @@ def generate_default_view(args: list):
     model = ensure_model(model_filename, latent_size=794)
 
     batch_size = 128
-    beta_1 = .84
+    beta_1 = .9
     noise_beta = .5
     lr_dampening = beta_1 ** epochs_done
     noise_dampening = noise_beta ** epochs_done
     learning_rate = 4e-4 * lr_dampening
     gradient_noise = 0.001 * noise_dampening
-    model.compile(optimizer=NoisyNadam(strength=gradient_noise, sustain=noise_beta,
-                                       learning_rate=learning_rate,
-                                       beta_1=beta_1, beta_2=0.75),
+    model.compile(optimizer=Nadam(learning_rate=learning_rate,
+                                  beta_1=beta_1, beta_2=0.75),
                   loss=model.loss,
                   metrics=[accuracy, 'mae'])
     model.fit(x=X, y=Y,
