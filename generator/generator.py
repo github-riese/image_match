@@ -118,8 +118,8 @@ def generate_default_view(args: list):
     model = ensure_model(model_filename, latent_size=1024)
 
     batch_size = 128
-    beta_1 = .84
-    noise_beta = .8
+    beta_1 = .9
+    noise_beta = .5
     lr_dampening = beta_1 ** epochs_done
     noise_dampening = noise_beta ** epochs_done
     learning_rate = 2.5e-4 * lr_dampening
