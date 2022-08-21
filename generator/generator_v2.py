@@ -42,48 +42,41 @@ class Generator(tf.keras.Model):
         self._conv_2 = Conv2D(64, 3, activation='leaky_relu', padding='same')
         self._pool_1 = MaxPooling2D((2, 2), (2, 2))
 
-        self._conv_3 = Conv2D(128, 2, activation='leaky_relu', padding='same')
-        self._conv_4 = Conv2D(128, 2, activation='leaky_relu', padding='same')
+        self._conv_3 = Conv2D(128, 3, activation='leaky_relu', padding='same')
+        self._conv_4 = Conv2D(128, 3, activation='leaky_relu', padding='same')
         self._pool_2 = MaxPooling2D(2, 2)
 
         self._conv_5 = Conv2D(256, 3, activation='leaky_relu', padding='same')
         self._conv_6 = Conv2D(256, 3, activation='leaky_relu', padding='same')
         self._pool_3 = MaxPooling2D(2, 2)
 
-        self._conv_7 = Conv2D(512, 2, activation='leaky_relu', padding='same')
-        self._conv_8 = Conv2D(512, 2, activation='leaky_relu', padding='same')
+        self._conv_7 = Conv2D(512, 3, activation='leaky_relu', padding='same')
+        self._conv_8 = Conv2D(512, 3, activation='leaky_relu', padding='same')
         self._pool_4 = MaxPooling2D(2, 2)
 
         # self._vgg = VGG16(include_top=False, input_shape=(None, None, 3), weights='imagenet')
         # self._vgg.trainable = False
         self._flatten = Flatten()
 
+        self._dropout = Dropout(rate=0.5)
         self._latent = Lambda(self._compute_latent, output_shape=(latent_size,))
         self._latent_mean = Dense(latent_size, activity_regularizer=regularizers.l1(0.05))
         self._latent_log_var = Dense(latent_size, activity_regularizer=regularizers.l1(0.05))
 
         self._dense1 = Dense(latent_size, activation='leaky_relu', activity_regularizer=regularizers.l1(0.025))
-        self._dropout = Dropout(rate=0.5)
         self._dense2 = Dense(latent_size, activation='leaky_relu', activity_regularizer=regularizers.l1(0.025))
 
         self._reshape = Reshape(target_shape=(1, 1, latent_size))
 
-        self._generate_1 = Conv2DTranspose(512, 2, 2, use_bias=False, activation='leaky_relu',
+        self._generate_1 = Conv2DTranspose(512, 2, 2, use_bias=True, activation='leaky_relu',
                                            activity_regularizer=regularizers.l2(0.02))
-        self._generate_2 = Conv2DTranspose(256, 5, 5, use_bias=False, activation='leaky_relu',
-                                           activity_regularizer=regularizers.l2(0.015))
-        self._generate_3 = Conv2DTranspose(128, 2, 2, use_bias=False, activation='leaky_relu',
-                                           activity_regularizer=regularizers.l2(0.01))
-        self._generate_4 = Conv2DTranspose(96, 2, 1, use_bias=False, activation='leaky_relu', padding='same',
-                                           activity_regularizer=regularizers.l2(0.005))
-        self._generate_5 = Conv2DTranspose(72, 2, 2, use_bias=False, activation='leaky_relu',
-                                           activity_regularizer=regularizers.l2(0.0025))
-        self._generate_6 = Conv2DTranspose(64, 2, 1, use_bias=False, activation='leaky_relu', padding='same',
-                                           activity_regularizer=regularizers.l2(0.0012))
-        self._generate_7 = Conv2DTranspose(48, 2, 2, use_bias=False, activation='leaky_relu',
-                                           activity_regularizer=regularizers.l2(0.0006))
-        self._generate_8 = Conv2DTranspose(48, 2, 1, use_bias=False, activation='leaky_relu', padding='same',
-                                           activity_regularizer=regularizers.l2(0.0003))
+        self._generate_2 = Conv2DTranspose(256, 5, 5, use_bias=True, activation='leaky_relu')
+        self._generate_3 = Conv2DTranspose(128, 2, 2, use_bias=True, activation='leaky_relu')
+        self._generate_4 = Conv2DTranspose(96, 2, 1, use_bias=True, activation='leaky_relu', padding='same')
+        self._generate_5 = Conv2DTranspose(72, 2, 2, use_bias=True, activation='leaky_relu')
+        self._generate_6 = Conv2DTranspose(64, 2, 1, use_bias=True, activation='leaky_relu', padding='same')
+        self._generate_7 = Conv2DTranspose(48, 2, 2, use_bias=True, activation='leaky_relu')
+        self._generate_8 = Conv2DTranspose(48, 2, 1, use_bias=True, activation='leaky_relu', padding='same')
         self._output = Conv2DTranspose(3, 1, 1, use_bias=True, activation='sigmoid')
 
         self._latent.build(input_shape=input_shape)

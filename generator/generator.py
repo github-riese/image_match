@@ -122,8 +122,8 @@ def generate_default_view(args: list):
     noise_beta = .5
     lr_dampening = beta_1 ** epochs_done
     noise_dampening = noise_beta ** epochs_done
-    learning_rate = 6.25e-4 * lr_dampening
-    gradient_noise = 0.0001 * noise_dampening
+    learning_rate = 4e-4 * lr_dampening
+    gradient_noise = 0.001 * noise_dampening
     model.compile(optimizer=NoisyNadam(strength=gradient_noise, sustain=noise_beta,
                                        learning_rate=learning_rate,
                                        beta_1=beta_1, beta_2=0.75),
