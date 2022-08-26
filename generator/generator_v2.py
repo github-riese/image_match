@@ -4,7 +4,7 @@ from keras import backend as K, regularizers
 from keras.layers import Dense, Flatten, Reshape, Conv2DTranspose, \
     Lambda, Normalization, Dropout, GaussianNoise, MaxPooling2D
 from keras.legacy_tf_layers.convolutional import Conv2D
-from keras.optimizer_v2.nadam import Nadam
+from keras.optimizers.optimizer_v2.nadam import Nadam
 
 
 class NoisyNadam(Nadam):
@@ -58,16 +58,17 @@ class Generator(tf.keras.Model):
 
         self._dropout = Dropout(rate=0.5)
         self._latent = Lambda(self._compute_latent, output_shape=(latent_size,))
-        self._latent_mean = Dense(latent_size, activity_regularizer=regularizers.l1(0.05))
-        self._latent_log_var = Dense(latent_size, activity_regularizer=regularizers.l1(0.05))
+        self._latent_mean = Dense(latent_size, activity_regularizer=regularizers.l1(0.06))
+        self._latent_log_var = Dense(latent_size, activity_regularizer=regularizers.l1(0.06))
 
-        self._dense1 = Dense(latent_size, activation='leaky_relu', activity_regularizer=regularizers.l1(0.025))
+        self._dense1 = Dense(latent_size, activation='leaky_relu', activity_regularizer=regularizers.l1(0.04))
 
         self._reshape = Reshape(target_shape=(1, 1, latent_size))
 
         self._generate_1 = Conv2DTranspose(512, 2, 2, use_bias=True, activation='leaky_relu',
-                                           activity_regularizer=regularizers.l2(0.02))
-        self._generate_2 = Conv2DTranspose(256, 2, 2, use_bias=True, activation='leaky_relu')
+                                           activity_regularizer=regularizers.l2(0.03))
+        self._generate_2 = Conv2DTranspose(256, 2, 2, use_bias=True, activation='leaky_relu',
+                                           activity_regularizer=regularizers.l2(0.03))
         self._generate_3 = Conv2DTranspose(128, 5, 5, use_bias=True, activation='leaky_relu')
         self._generate_4 = Conv2DTranspose(96, 2, 1, use_bias=True, activation='leaky_relu', padding='same')
         self._generate_5 = Conv2DTranspose(72, 2, 2, use_bias=True, activation='leaky_relu')
