@@ -4,7 +4,7 @@ from keras import backend as K, regularizers
 from keras.layers import Dense, Flatten, Reshape, Conv2DTranspose, \
     Lambda, Normalization, Dropout, GaussianNoise, MaxPooling2D
 from keras.legacy_tf_layers.convolutional import Conv2D
-from keras.optimizers.optimizer_v2.nadam import Nadam
+from keras.optimizer_v2.nadam import Nadam
 
 
 class NoisyNadam(Nadam):
@@ -35,11 +35,7 @@ class Generator(tf.keras.Model):
         self._mean = None
         self._log_var = None
 
-        self._noise_1 = GaussianNoise(.5)
-        self._noise_2 = GaussianNoise(.25)
-        self._noise_3 = GaussianNoise(.125)
-        self._noise_4 = GaussianNoise(.0625)
-
+        self._noise = GaussianNoise(.5)
         self._norm = Normalization()
 
         self._conv_1 = Conv2D(64, 3, activation='leaky_relu', padding='same')
@@ -96,22 +92,22 @@ class Generator(tf.keras.Model):
     def call(self, inputs, training=None, mask=None):
         inputs = self._norm(inputs)
         if training:
-            inputs = self._noise_1(inputs)
+            inputs = self._noise(inputs)
         inputs = self._conv_1(inputs)
         inputs = self._conv_2(inputs)
         inputs = self._pool_1(inputs)
         if training:
-            inputs = self._noise_2(inputs)
+            inputs = self._noise(inputs)
         inputs = self._conv_3(inputs)
         inputs = self._conv_4(inputs)
         inputs = self._pool_2(inputs)
         if training:
-            inputs = self._noise_3(inputs)
+            inputs = self._noise(inputs)
         inputs = self._conv_5(inputs)
         inputs = self._conv_6(inputs)
         inputs = self._pool_3(inputs)
         if training:
-            inputs = self._noise_4(inputs)
+            inputs = self._noise(inputs)
         inputs = self._conv_7(inputs)
         inputs = self._conv_8(inputs)
         inputs = self._pool_4(inputs)
