@@ -95,9 +95,9 @@ class Generator(tf.keras.Model):
         return mean + K.exp(log_var / 2) * epsilon
 
     def call(self, inputs, training=None, mask=None):
+        inputs = self._norm(inputs)
         if training:
             inputs = self._noise_1(inputs)
-        inputs = self._norm(inputs)
         inputs = self._conv_1(inputs)
         inputs = self._conv_2(inputs)
         inputs = self._pool_1(inputs)
