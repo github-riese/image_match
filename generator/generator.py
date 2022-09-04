@@ -54,7 +54,7 @@ def generate_default_view(args: list):
     config = _configure(args)
     base_image_loader = ImageLoader({'jewellery': config['image_path']}, (240, 240),
                                     cache_path=config['image_path'] + "/cache")
-    image_loader = AugmentedImageLoader(image_loader=base_image_loader, size=(32, 32))
+    image_loader = AugmentedImageLoader(image_loader=base_image_loader, size=(64, 64))
 
     data = pd.read_csv(config['csv_file'])
     dataset = Dataset(data, image_loader=image_loader)
@@ -88,45 +88,45 @@ def generate_default_view(args: list):
     print(f"done loading {len(X)} samples.")
 
     indices = [10, 1000, 20000, 17984, 666, 6660]
-    validate = np.ndarray((0, 32, 32, 3), dtype=np.float32)
-    expect = np.ndarray((0, 32, 32, 3), dtype=np.float32)
+    validate = np.ndarray((0, 64, 64, 3), dtype=np.float32)
+    expect = np.ndarray((0, 64, 64, 3), dtype=np.float32)
     for i in indices:
         x = X[i]
         y = Y[i]
         x = x.numpy()
         y = y.numpy()
-        validate = np.concatenate([validate, x.reshape((1, 32, 32, 3))], axis=0)
-        expect = np.concatenate([expect, y.reshape((1, 32, 32, 3))], axis=0)
+        validate = np.concatenate([validate, x.reshape((1, 64, 64, 3))], axis=0)
+        expect = np.concatenate([expect, y.reshape((1, 64, 64, 3))], axis=0)
     for i in range(19, 60, 9):
         x = X[-i]
         y = Y[-i]
         x = x.numpy()
         y = y.numpy()
-        validate = np.concatenate([validate, x.reshape((1, 32, 32, 3))], axis=0)
-        expect = np.concatenate([expect, y.reshape((1, 32, 32, 3))], axis=0)
+        validate = np.concatenate([validate, x.reshape((1, 64, 64, 3))], axis=0)
+        expect = np.concatenate([expect, y.reshape((1, 64, 64, 3))], axis=0)
 
-    x = image_loader.load_image('/Users/riese/tmp/images/7024WC_screenshot.png', desired_size=(32, 32))
-    y = image_loader.load_image('/Users/riese/tmp/images/7024WC.png', desired_size=(32, 32))
+    x = image_loader.load_image('/Users/riese/tmp/images/7024WC_screenshot.png', desired_size=(64, 64))
+    y = image_loader.load_image('/Users/riese/tmp/images/7024WC.png', desired_size=(64, 64))
     x = np.array(x / 255, dtype=np.float32)
     y = np.array(y / 255, dtype=np.float32)
-    validate = tf.concat([validate, np.reshape(x, (1, 32, 32, 3))], axis=0)
-    expect = np.concatenate([expect, y.reshape((1, 32, 32, 3))], axis=0)
+    validate = tf.concat([validate, np.reshape(x, (1, 64, 64, 3))], axis=0)
+    expect = np.concatenate([expect, y.reshape((1, 64, 64, 3))], axis=0)
 
     callback = PlottingCallback(display, validate, expect, losses, model_filename)
 
     epochs_done = config['initial_epoch']
-    model = ensure_model(model_filename, latent_size=912)
+    model = ensure_model(model_filename, latent_size=512)
 
     batch_size = 128
-    beta_1 = .9
-    noise_beta = .4
+    beta_1 = .4
+    noise_beta = .5
     lr_dampening = beta_1 ** epochs_done
     noise_dampening = noise_beta ** epochs_done
-    learning_rate = 2.8e-6 * lr_dampening
-    gradient_noise = 0.0 * noise_dampening
+    learning_rate = 0.000076 * lr_dampening
+    gradient_noise = 0.000 * noise_dampening
     model.compile(optimizer=NoisyNadam(strength=gradient_noise, sustain=noise_beta,
                                        learning_rate=learning_rate,
-                                       beta_1=beta_1, beta_2=0.8),
+                                       beta_1=beta_1, beta_2=0.75),
                   loss=model.loss,
                   metrics=[accuracy, 'mae'])
     model.fit(x=X, y=Y,
@@ -146,26 +146,26 @@ def generate_default_view(args: list):
 def ensure_model(model_filename, latent_size: int = 256) -> tf.keras.Model:
     if os.path.exists(model_filename) and os.path.exists(model_filename + "/theModel.index"):
         model = Generator.load(filename=f"{model_filename}/theModel", latent_size=latent_size,
-                               input_shape=(None, 32, 32, 3))
+                               input_shape=(None, 64, 64, 3))
     else:
         if not os.path.exists(model_filename):
             os.mkdir(f"{model_filename}")
         model = Generator(latent_size=latent_size)
-        model.build(input_shape=(None, 32, 32, 3))
+        model.build(input_shape=(None, 64, 64, 3))
     model.summary()
     return model
 
 
 def make_validation_data(validation_dataset, validation_ids):
-    sources = np.zeros((0, 32, 32, 3))
-    validate = tf.zeros((0, 32, 32, 3))
-    expect = np.zeros((0, 32, 32, 3))
+    sources = np.zeros((0, 64, 64, 3))
+    validate = tf.zeros((0, 64, 64, 3))
+    expect = np.zeros((0, 64, 64, 3))
     for n in range(5):
         index = validation_ids[n]
         x, y = validation_dataset.__getitem__(index)
-        validate = tf.concat([validate, x.reshape((1, 32, 32, 3))], axis=0)
-        sources = np.concatenate([sources, x.reshape((1, 32, 32, 3))], axis=0)
-        expect = np.concatenate([expect, y.reshape((1, 32, 32, 3))], axis=0)
+        validate = tf.concat([validate, x.reshape((1, 64, 64, 3))], axis=0)
+        sources = np.concatenate([sources, x.reshape((1, 64, 64, 3))], axis=0)
+        expect = np.concatenate([expect, y.reshape((1, 64, 64, 3))], axis=0)
     return expect, sources, normalize_x(validate)
 
 

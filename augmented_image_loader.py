@@ -18,7 +18,8 @@ class AugmentedImageLoader(ImageLoaderInterface):
     def load_augmented_image(self, path: str, img_type: str = None,
                              desired_size: Optional[Tuple[int, int]] = None,
                              bbox: Optional[Tuple[float, float, float, float]] = None):
-        cache_key = self._make_cache_key(path, desired_size, bbox)
+        out_size = self._output_size if desired_size is None else desired_size
+        cache_key = self._make_cache_key(path, out_size, bbox)
         cached = self._image_loader.load_cached_image(cache_key)
         if cached is not None:
             return cached
@@ -29,7 +30,7 @@ class AugmentedImageLoader(ImageLoaderInterface):
         coords = self._to_coords(bbox, (image.shape[0], image.shape[1]))
         image = Image.fromarray(image)
         image = image.crop(coords)
-        image = image.resize(self._output_size if desired_size is None else desired_size)
+        image = image.resize(out_size)
         self._image_loader.save_to_cache(image, cache_key)
         return np.array(image)
 
