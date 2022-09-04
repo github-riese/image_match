@@ -1,13 +1,14 @@
 import numpy as np
 import tensorflow as tf
 from keras import backend as K, regularizers
+from keras.backend import flatten
 from keras.layers import Dense, Flatten, Reshape, Conv2DTranspose, \
     Lambda, Dropout, GaussianNoise, MaxPooling2D, Normalization
 from keras.legacy_tf_layers.convolutional import Conv2D
-from keras.optimizers import Adam
+from keras.optimizers import Nadam
 
 
-class NoisyAdam(Adam):
+class NoisyAdam(Nadam):
 
     def __init__(self, strength, sustain, learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-7, name='NoisyAdam',
                  **kwargs):
@@ -42,19 +43,19 @@ class Generator(tf.keras.Model):
         self._noise_4 = GaussianNoise(.3645)
 
         self._conv_1 = Conv2D(64, 3, activation='leaky_relu', padding='same')
-#        self._conv_2 = Conv2D(64, 3, activation='leaky_relu', padding='same')
+        self._conv_2 = Conv2D(64, 3, activation='leaky_relu', padding='same')
         self._pool_1 = MaxPooling2D(3, 3)
 
         self._conv_3 = Conv2D(128, 3, activation='leaky_relu', padding='same')
-#        self._conv_4 = Conv2D(128, 3, activation='leaky_relu', padding='same')
+        self._conv_4 = Conv2D(128, 3, activation='leaky_relu', padding='same')
         self._pool_2 = MaxPooling2D(3, 3)
 
         self._conv_5 = Conv2D(256, 3, activation='leaky_relu', padding='same')
-#        self._conv_6 = Conv2D(256, 3, activation='leaky_relu', padding='same')
+        self._conv_6 = Conv2D(256, 3, activation='leaky_relu', padding='same')
         self._pool_3 = MaxPooling2D(3, 3)
 
         self._conv_7 = Conv2D(512, 3, activation='leaky_relu', padding='same')
-#        self._conv_8 = Conv2D(512, 3, activation='leaky_relu', padding='same')
+        self._conv_8 = Conv2D(512, 3, activation='leaky_relu', padding='same')
         self._pool_4 = MaxPooling2D(2, 2)
 
         self._flatten = Flatten()
@@ -94,22 +95,22 @@ class Generator(tf.keras.Model):
         if training:
             inputs = self._noise_1(inputs)
         inputs = self._conv_1(inputs)
-#        inputs = self._conv_2(inputs)
+        inputs = self._conv_2(inputs)
         inputs = self._pool_1(inputs)
         if training:
             inputs = self._noise_2(inputs)
         inputs = self._conv_3(inputs)
-#        inputs = self._conv_4(inputs)
+        inputs = self._conv_4(inputs)
         inputs = self._pool_2(inputs)
         if training:
             inputs = self._noise_3(inputs)
         inputs = self._conv_5(inputs)
-#        inputs = self._conv_6(inputs)
+        inputs = self._conv_6(inputs)
         inputs = self._pool_3(inputs)
         if training:
             inputs = self._noise_4(inputs)
         inputs = self._conv_7(inputs)
-#        inputs = self._conv_8(inputs)
+        inputs = self._conv_8(inputs)
         inputs = self._pool_4(inputs)
 
         inputs = self._flatten(inputs)
@@ -174,7 +175,7 @@ if __name__ == '__main__':
     latent_size = 512
     model = Generator(latent_size=latent_size)
     model.build(input_shape=(None, 64, 64, 3))
-    model.compile(optimizer=NoisyNadam(strength=.55, sustain=.9, learning_rate=5e-5, beta_1=0.82, beta_2=0.9),
+    model.compile(optimizer=NoisyAdam(strength=.55, sustain=.9, learning_rate=5e-5, beta_1=0.82, beta_2=0.9),
                   loss=model.loss, metrics=[accuracy, 'mae'])
     model.summary()
     inputs = np.zeros((32, 64, 64, 3), dtype=float)

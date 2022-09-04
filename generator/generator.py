@@ -14,7 +14,7 @@ from torch.nn import Module
 
 from augmented_image_loader import AugmentedImageLoader
 from generator.dataset import Dataset
-from generator.generator_v2 import Generator, accuracy
+from generator.generator_v2 import Generator, accuracy, NoisyAdam
 from generator.tf_generator import ImageGenerator
 from image_display import ImageDisplay
 from image_loader import ImageLoader
@@ -116,17 +116,17 @@ def generate_default_view(args: list):
     callback = PlottingCallback(display, validate, expect, losses, model_filename)
 
     epochs_done = config['initial_epoch']
-    model = ensure_model(model_filename, latent_size=512)
+    model = ensure_model(model_filename, latent_size=1024)
 
     batch_size = 128
-    beta_1 = .4
+    beta_1 = .7
     noise_beta = .5
     lr_dampening = beta_1 ** epochs_done
     noise_dampening = noise_beta ** epochs_done
-    learning_rate = 0.000076 * lr_dampening
-    gradient_noise = 0.000 * noise_dampening
-    model.compile(optimizer=Adam(learning_rate=learning_rate,
-                                 beta_1=beta_1, beta_2=0.75),
+    learning_rate = 0.000304 * lr_dampening
+    gradient_noise = 0.0005 * noise_dampening
+    model.compile(optimizer=NoisyAdam(strength=gradient_noise, sustain=noise_beta, learning_rate=learning_rate,
+                                      beta_1=beta_1, beta_2=0.75),
                   loss=model.loss,
                   metrics=[accuracy, 'mae'])
     model.fit(x=X, y=Y,
