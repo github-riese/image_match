@@ -8,12 +8,13 @@ import pandas as pd
 import tensorflow as tf
 import torch
 from keras.callbacks import Callback
+from keras.optimizers import Adam
 from matplotlib import pyplot as plt
 from torch.nn import Module
 
 from augmented_image_loader import AugmentedImageLoader
 from generator.dataset import Dataset
-from generator.generator_v2 import Generator, accuracy, NoisyNadam
+from generator.generator_v2 import Generator, accuracy
 from generator.tf_generator import ImageGenerator
 from image_display import ImageDisplay
 from image_loader import ImageLoader
@@ -124,9 +125,8 @@ def generate_default_view(args: list):
     noise_dampening = noise_beta ** epochs_done
     learning_rate = 0.000076 * lr_dampening
     gradient_noise = 0.000 * noise_dampening
-    model.compile(optimizer=NoisyNadam(strength=gradient_noise, sustain=noise_beta,
-                                       learning_rate=learning_rate,
-                                       beta_1=beta_1, beta_2=0.75),
+    model.compile(optimizer=Adam(learning_rate=learning_rate,
+                                 beta_1=beta_1, beta_2=0.75),
                   loss=model.loss,
                   metrics=[accuracy, 'mae'])
     model.fit(x=X, y=Y,

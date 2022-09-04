@@ -4,12 +4,12 @@ from keras import backend as K, regularizers
 from keras.layers import Dense, Flatten, Reshape, Conv2DTranspose, \
     Lambda, Dropout, GaussianNoise, MaxPooling2D, Normalization
 from keras.legacy_tf_layers.convolutional import Conv2D
-from keras.optimizers import Nadam
+from keras.optimizers import Adam
 
 
-class NoisyNadam(Nadam):
+class NoisyAdam(Adam):
 
-    def __init__(self, strength, sustain, learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-7, name='Nadam',
+    def __init__(self, strength, sustain, learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-7, name='NoisyAdam',
                  **kwargs):
         super().__init__(learning_rate, beta_1, beta_2, epsilon, name, **kwargs)
         self.strength = strength
@@ -140,14 +140,9 @@ class Generator(tf.keras.Model):
         return self._output(inputs)  # 64x64x3
 
     def loss(self, actual, predicted):
-        reconstruction_loss = tf.reduce_mean(
-            tf.reduce_sum(
-                tf.keras.losses.binary_crossentropy(actual, predicted), axis=(1, 2)
-            )
-        )
+        reconstruction_loss = tf.keras.losses.binary_crossentropy(flatten(actual), flatten(predicted)) * 64 * 64 * 3
         kl_loss = -0.5 * (1 + self._log_var - tf.square(self._mean) - tf.exp(self._log_var))
-        kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis=1))
-        return reconstruction_loss + kl_loss
+        return tf.reduce_mean(reconstruction_loss + kl_loss)
 
     @classmethod
     def load(cls, filename, latent_size: int = 512, input_shape: tuple = None):
