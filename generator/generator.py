@@ -119,18 +119,18 @@ def generate_default_view(args: list):
     model = ensure_model(model_filename, latent_size=1024)
 
     batch_size = 128
-    beta_1 = .7
-    noise_beta = .5
+    beta_1 = .68
+    noise_beta = .8
     lr_dampening = beta_1 ** epochs_done
     noise_dampening = noise_beta ** epochs_done
-    learning_rate = 0.000304 * lr_dampening
-    gradient_noise = 0.0005 * noise_dampening
+    learning_rate = 0.000128 * lr_dampening
+    gradient_noise = 0.004 * noise_dampening
     model.compile(optimizer=NoisyAdam(strength=gradient_noise, sustain=noise_beta, learning_rate=learning_rate,
                                       beta_1=beta_1, beta_2=0.75),
                   loss=model.loss,
                   metrics=[accuracy, 'mae'])
     model.fit(x=X, y=Y,
-              steps_per_epoch=int(math.ceil(len(X) / batch_size / 1.9)),
+              steps_per_epoch=int(math.ceil(len(X) / batch_size / 2.7)),
               batch_size=batch_size,
               shuffle=True,
               epochs=epochs, validation_freq=1, verbose=1,
