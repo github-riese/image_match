@@ -41,6 +41,9 @@ class PlottingCallback(Callback):
         self._display.show_images(bamm, int(math.ceil(bamm.shape[0] / 6)), losses=(logs['loss'], logs['val_loss']))
         self._display.save(f"snapshots/image_ep_{epoch + 1:03d}_{logs['loss']:.4f}.png")
         self.model.optimizer.epoch = epoch
+        self.model.encoder.trainable = epoch % 2 == 0
+        self.model.decoder.trainable = epoch % 2 == 1
+        # self.model.compile(optimizer=self.model.optimizer, loss=self.model.loss, metrics=self.model.metrics)
         if epoch % 5 == 4:
             self.model.save(f"{self._model_filename}/theModel")
             print("model saved.")
@@ -119,18 +122,20 @@ def generate_default_view(args: list):
     model = ensure_model(model_filename, latent_size=1024)
 
     batch_size = 128
-    beta_1 = .68
-    noise_beta = .8
+    beta_1 = .78
+    noise_beta = .38
     lr_dampening = beta_1 ** epochs_done
     noise_dampening = noise_beta ** epochs_done
-    learning_rate = 0.000128 * lr_dampening
-    gradient_noise = 0.004 * noise_dampening
-    model.compile(optimizer=NoisyAdam(strength=gradient_noise, sustain=noise_beta, learning_rate=learning_rate,
-                                      beta_1=beta_1, beta_2=0.75),
+    learning_rate = 0.0001 * lr_dampening
+    gradient_noise = 0.0001 * noise_dampening
+    optimizer = NoisyAdam(strength=gradient_noise, sustain=noise_beta, learning_rate=learning_rate,
+                          beta_1=beta_1, beta_2=0.4)
+    # optimizer = Adam(learning_rate=learning_rate, epsilon=0.1, beta_1=beta_1, beta_2=0.75)
+    model.compile(optimizer=optimizer,
                   loss=model.loss,
                   metrics=[accuracy, 'mae'])
     model.fit(x=X, y=Y,
-              steps_per_epoch=int(math.ceil(len(X) / batch_size / 2.7)),
+              steps_per_epoch=int(math.ceil(len(X) / batch_size / 1.9)),
               batch_size=batch_size,
               shuffle=True,
               epochs=epochs, validation_freq=1, verbose=1,
