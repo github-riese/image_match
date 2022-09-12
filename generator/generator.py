@@ -119,18 +119,18 @@ def generate_default_view(args: list):
     callback = PlottingCallback(display, validate, expect, losses, model_filename)
 
     epochs_done = config['initial_epoch']
-    model = ensure_model(model_filename, latent_size=1024)
+    model = ensure_model(model_filename, latent_size=512, input_shape=(None, 64, 64, 3))
 
     batch_size = 128
-    beta_1 = .78
+    beta_1 = .9
     noise_beta = .38
     lr_dampening = beta_1 ** epochs_done
     noise_dampening = noise_beta ** epochs_done
-    learning_rate = 0.0001 * lr_dampening
+    learning_rate = 0.0006 * lr_dampening
     gradient_noise = 0.0001 * noise_dampening
-    optimizer = NoisyAdam(strength=gradient_noise, sustain=noise_beta, learning_rate=learning_rate,
-                          beta_1=beta_1, beta_2=0.4)
-    # optimizer = Adam(learning_rate=learning_rate, epsilon=0.1, beta_1=beta_1, beta_2=0.75)
+    # optimizer = NoisyAdam(strength=gradient_noise, sustain=noise_beta, learning_rate=learning_rate,
+    #                       beta_1=beta_1, beta_2=0.4)
+    optimizer = Adam(learning_rate=learning_rate, epsilon=0.1, beta_1=beta_1, beta_2=0.8)
     model.compile(optimizer=optimizer,
                   loss=model.loss,
                   metrics=[accuracy, 'mae'])
@@ -148,14 +148,14 @@ def generate_default_view(args: list):
     plt.waitforbuttonpress()
 
 
-def ensure_model(model_filename, latent_size: int = 256) -> tf.keras.Model:
+def ensure_model(model_filename, latent_size: int = 256, input_shape: tuple = (None, 64, 64, 3)) -> tf.keras.Model:
     if os.path.exists(model_filename) and os.path.exists(model_filename + "/theModel.index"):
         model = Generator.load(filename=f"{model_filename}/theModel", latent_size=latent_size,
-                               input_shape=(None, 64, 64, 3))
+                               input_shape=input_shape)
     else:
         if not os.path.exists(model_filename):
             os.mkdir(f"{model_filename}")
-        model = Generator(latent_size=latent_size)
+        model = Generator(latent_size=latent_size, input_shape=input_shape)
         model.build(input_shape=(None, 64, 64, 3))
     model.summary()
     return model

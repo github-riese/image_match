@@ -6,7 +6,7 @@ from keras import backend as K, regularizers
 from keras.backend import flatten
 from keras.callbacks import Callback
 from keras.layers import Dense, Flatten, Reshape, Conv2DTranspose, \
-    Lambda, Dropout, GaussianNoise, MaxPooling2D, Normalization, BatchNormalization
+    Lambda, Dropout, GaussianNoise, MaxPooling2D, Normalization, BatchNormalization, AveragePooling2D
 from keras.legacy_tf_layers.convolutional import Conv2D
 from keras.optimizers import Nadam, Adam
 
@@ -44,10 +44,10 @@ class Generator(tf.keras.Model):
             def __init__(self):
                 super(Encoder, self).__init__()
                 self._norm = Normalization()
-                self._noise_1 = GaussianNoise(1.0)
-                self._noise_2 = GaussianNoise(.9)
-                self._noise_3 = GaussianNoise(.81)
-                self._noise_4 = GaussianNoise(.72)
+                self._noise_1 = GaussianNoise(0.7)
+                self._noise_2 = GaussianNoise(0.45)
+                self._noise_3 = GaussianNoise(0.4)
+                self._noise_4 = GaussianNoise(0.35)
 
                 self._bn_1 = BatchNormalization()
                 self._bn_2 = BatchNormalization()
@@ -55,52 +55,57 @@ class Generator(tf.keras.Model):
 
                 self._conv_1 = Conv2D(64, 3, activation='leaky_relu', padding='same')
                 self._conv_2 = Conv2D(64, 3, activation='leaky_relu', padding='same')
-                self._pool_1 = MaxPooling2D(3, 3)
+                self._pool_1 = MaxPooling2D(2, 2)
 
-                self._conv_3 = Conv2D(128, 3, activation='leaky_relu', padding='same')
-                self._conv_4 = Conv2D(128, 3, activation='leaky_relu', padding='same')
-                self._pool_2 = MaxPooling2D(3, 3)
+                self._conv_3 = Conv2D(64, 3, activation='leaky_relu', padding='same')
+                self._conv_4 = Conv2D(64, 3, activation='leaky_relu', padding='same')
+                self._pool_2 = MaxPooling2D(2, 2)
 
-                self._conv_5 = Conv2D(256, 3, activation='leaky_relu', padding='same')
-                self._conv_6 = Conv2D(256, 3, activation='leaky_relu', padding='same')
-                self._pool_3 = MaxPooling2D(3, 3)
+                self._conv_5 = Conv2D(128, 3, activation='leaky_relu', padding='same')
+                self._conv_6 = Conv2D(128, 3, activation='leaky_relu', padding='same')
+                self._pool_3 = MaxPooling2D(2, 2)
 
-                self._conv_7 = Conv2D(512, 3, activation='leaky_relu', padding='same')
-                self._conv_8 = Conv2D(512, 3, activation='leaky_relu', padding='same')
+                self._conv_7 = Conv2D(256, 3, activation='leaky_relu', padding='same')
+                self._conv_8 = Conv2D(256, 3, activation='leaky_relu', padding='same')
                 self._pool_4 = MaxPooling2D(2, 2)
+
+                self._conv_9 = Conv2D(512, 3, activation='leaky_relu', padding='same')
+                self._conv_10 = Conv2D(512, 3, activation='leaky_relu', padding='valid')
+                self._pool_5 = MaxPooling2D(2, 2)
 
             def call(self, inputs, training=None, mask=None):
 
                 inputs = self._norm(inputs)
-                if training:
-                    inputs = self._noise_1(inputs)
+                # if training:
+                #     inputs = self._noise_1(inputs)
                 inputs = self._conv_1(inputs)
                 inputs = self._conv_2(inputs)
                 inputs = self._pool_1(inputs)
-                inputs = self._bn_1(inputs)
-                if training:
-                    inputs = self._noise_2(inputs)
+                # if training:
+                #     inputs = self._noise_2(inputs)
                 inputs = self._conv_3(inputs)
                 inputs = self._conv_4(inputs)
                 inputs = self._pool_2(inputs)
-                inputs = self._bn_2(inputs)
-                if training:
-                    inputs = self._noise_3(inputs)
+                # if training:
+                #     inputs = self._noise_3(inputs)
                 inputs = self._conv_5(inputs)
                 inputs = self._conv_6(inputs)
                 inputs = self._pool_3(inputs)
-                inputs = self._bn_3(inputs)
-                if training:
-                    inputs = self._noise_4(inputs)
+                # if training:
+                #    inputs = self._noise_4(inputs)
                 inputs = self._conv_7(inputs)
                 inputs = self._conv_8(inputs)
-                return self._pool_4(inputs)
+                inputs = self._pool_4(inputs)
+
+                inputs = self._conv_9(inputs)
+                inputs = self._conv_10(inputs)
+                return self._pool_5(inputs)
 
         self.encoder = Encoder()
         self._flatten = Flatten()
         # self._reduce = Dense(512, name='reduce')
 
-        # self._dropout = Dropout(rate=0.5)
+        self._dropout = Dropout(rate=0.5)
         self._latent = Lambda(self._compute_latent, output_shape=(latent_size,))
         self._latent_mean = Dense(latent_size, name='latent_mean')
         self._latent_log_var = Dense(latent_size, name='latent_log_var')
@@ -109,23 +114,14 @@ class Generator(tf.keras.Model):
             def __init__(self):
                 super(Decoder, self).__init__()
 
-                self._bn_1 = BatchNormalization()
-                self._bn_2 = BatchNormalization()
-                self._bn_3 = BatchNormalization()
-
                 self._reshape = Reshape(target_shape=(1, 1, latent_size))
-                self._generate_1 = Conv2DTranspose(512, 2, 2, use_bias=True, activation='leaky_relu',
-                                                   kernel_regularizer=regularizers.l2(0.0001))
-                self._generate_2 = Conv2DTranspose(256, 2, 2, use_bias=True, activation='leaky_relu',
-                                                   kernel_regularizer=regularizers.l2(0.0004))
-                self._generate_3 = Conv2DTranspose(128, 2, 2, use_bias=True, activation='leaky_relu',
-                                                   kernel_regularizer=regularizers.l2(0.0008))
+                self._generate_1 = Conv2DTranspose(512, 2, 2, use_bias=True, activation='leaky_relu')
+                self._generate_2 = Conv2DTranspose(256, 2, 2, use_bias=True, activation='leaky_relu')
+                self._generate_3 = Conv2DTranspose(128, 2, 2, use_bias=True, activation='leaky_relu')
                 self._generate_4 = Conv2DTranspose(96, 3, 1, use_bias=True, activation='leaky_relu', padding='same')
-                self._generate_5 = Conv2DTranspose(72, 2, 2, use_bias=True, activation='leaky_relu',
-                                                   kernel_regularizer=regularizers.l2())
+                self._generate_5 = Conv2DTranspose(72, 2, 2, use_bias=True, activation='leaky_relu')
                 self._generate_6 = Conv2DTranspose(64, 3, 1, use_bias=True, activation='leaky_relu', padding='same')
-                self._generate_7 = Conv2DTranspose(48, 2, 2, use_bias=True, activation='leaky_relu',
-                                                   kernel_regularizer=regularizers.l2())
+                self._generate_7 = Conv2DTranspose(48, 2, 2, use_bias=True, activation='leaky_relu')
                 self._generate_8 = Conv2DTranspose(48, 2, 1, use_bias=True, activation='leaky_relu', padding='same')
                 self._output = Conv2DTranspose(3, 2, 2, use_bias=True, activation='sigmoid')
 
@@ -133,13 +129,13 @@ class Generator(tf.keras.Model):
                 inputs = self._reshape(inputs)  # 1x1xlatent
                 inputs = self._generate_1(inputs)  # 2x2x512
                 inputs = self._generate_2(inputs)  # 4x4x256
-                inputs = self._bn_1(inputs)
+
                 inputs = self._generate_3(inputs)  # 8x8x128
                 inputs = self._generate_4(inputs)  # 8x8x96
-                inputs = self._bn_2(inputs)
+
                 inputs = self._generate_5(inputs)  # 16x16x72
                 inputs = self._generate_6(inputs)  # 16x16x64
-                inputs = self._bn_3(inputs)
+
                 inputs = self._generate_7(inputs)  # 32x32x48
                 inputs = self._generate_8(inputs)  # 32x32x48
                 return self._output(inputs)  # 64x64x3
@@ -152,10 +148,13 @@ class Generator(tf.keras.Model):
     @staticmethod
     def _compute_latent(x, training):
         mean, log_var = x
-        batch = K.shape(mean)[0]
-        dim = K.int_shape(mean)[1]
-        epsilon = K.random_normal(shape=(batch, dim))
-        return mean + K.exp(0.5 * log_var) * epsilon
+        if training:
+            batch = K.shape(mean)[0]
+            dim = K.int_shape(mean)[1]
+            epsilon = K.random_normal(shape=(batch, dim))
+        else:
+            epsilon = 1.0
+        return mean + K.exp(log_var / 2) * epsilon
 
     def call(self, inputs, training=None, mask=None):
         inputs = self.encoder(inputs, training, mask)
@@ -163,8 +162,8 @@ class Generator(tf.keras.Model):
         inputs = self._flatten(inputs)
         # inputs = self._reduce(inputs)
 
-        # if training:
-        #    inputs = self._dropout(inputs)
+        if training:
+            inputs = self._dropout(inputs)
         self._mean = self._latent_mean(inputs)
         self._log_var = self._latent_log_var(inputs)
 
@@ -179,12 +178,12 @@ class Generator(tf.keras.Model):
         )
         kl_loss = -0.5 * (1 + self._log_var - tf.square(self._mean) - tf.exp(self._log_var))
         kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis=1))
-        total_loss = reconstruction_loss + kl_loss * 0.01
+        total_loss = reconstruction_loss + kl_loss
         return total_loss
 
     @classmethod
     def load(cls, filename, latent_size: int = 512, input_shape: tuple = None):
-        reloaded = cls(latent_size)
+        reloaded = cls(latent_size, input_shape=input_shape)
         reloaded.load_weights(filename)
         if reloaded is not None:
             reloaded.build(input_shape=input_shape)
@@ -209,9 +208,10 @@ def accuracy(y_true, y_pred):
 
 
 if __name__ == '__main__':
-    latent_size = 1024
-    model = Generator(latent_size=latent_size)
-    model.build(input_shape=(None, 64, 64, 3))
+    latent_size = 768
+    input_shape = (None, 64, 64, 3)
+    model = Generator(latent_size=latent_size, input_shape=input_shape)
+    model.build(input_shape=input_shape)
     model.compile(optimizer=NoisyAdam(strength=.55, sustain=.9, learning_rate=5e-5, beta_1=0.82, beta_2=0.9,
                                       epsilon=0.1),
                   loss=model.loss, metrics=[accuracy, 'mae'])
