@@ -8,7 +8,7 @@ import pandas as pd
 import tensorflow as tf
 import torch
 from keras.callbacks import Callback
-from keras.optimizers import Adam
+from keras.optimizers import Adam, Nadam
 from matplotlib import pyplot as plt
 from torch.nn import Module
 
@@ -119,23 +119,25 @@ def generate_default_view(args: list):
     callback = PlottingCallback(display, validate, expect, losses, model_filename)
 
     epochs_done = config['initial_epoch']
-    model = ensure_model(model_filename, latent_size=512, input_shape=(None, 64, 64, 3))
+    model = ensure_model(model_filename, latent_size=1680, input_shape=(None, 64, 64, 3))
 
     batch_size = 128
-    beta_1 = .9
+    beta_1 = .56
     noise_beta = .38
     lr_dampening = beta_1 ** epochs_done
     noise_dampening = noise_beta ** epochs_done
-    learning_rate = 0.0006 * lr_dampening
+    learning_rate = 0.00045 * lr_dampening
     gradient_noise = 0.0001 * noise_dampening
     # optimizer = NoisyAdam(strength=gradient_noise, sustain=noise_beta, learning_rate=learning_rate,
-    #                       beta_1=beta_1, beta_2=0.4)
-    optimizer = Adam(learning_rate=learning_rate, epsilon=0.1, beta_1=beta_1, beta_2=0.8)
+    #                      beta_1=beta_1, beta_2=0.4)
+    # optimizer = Adam(learning_rate=learning_rate, epsilon=0.1, beta_1=beta_1, beta_2=0.8)
+    optimizer = Nadam(learning_rate=learning_rate, beta_1=beta_1, beta_2=0.8)
+
     model.compile(optimizer=optimizer,
                   loss=model.loss,
                   metrics=[accuracy, 'mae'])
     model.fit(x=X, y=Y,
-              steps_per_epoch=int(math.ceil(len(X) / batch_size / 1.9)),
+              steps_per_epoch=int(math.ceil(len(X) / batch_size / 2.78)),
               batch_size=batch_size,
               shuffle=True,
               epochs=epochs, validation_freq=1, verbose=1,
