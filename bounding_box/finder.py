@@ -84,4 +84,4 @@ def parse_args(args: List[str]) -> Dict[str, str]:
 def need_read_path(directory: DirEntry, depth: int) -> bool:
     if depth != 0:
         return True
-    return directory.name in ['original', 'frame', 'transformed']
+    return directory.name in ['original', 'frame', 'transformed', 'mixed']

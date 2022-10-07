@@ -43,7 +43,7 @@ class ImageDisplay:
             if len(losses) > 1:
                 self.__validation_loss = np.append(self.__validation_loss, losses[1])
             self._plot_loss(self.__ax[0], (self.__training_loss, self.__validation_loss))
-        plt.pause(.1)
+        plt.pause(.2)
 
     def show_images(self, images: np.ndarray, columns: int = 1, grid_linewidth: int = 1,
                     losses: Optional[Tuple[np.ndarray, ...]] = None):

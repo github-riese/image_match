@@ -14,3 +14,4 @@ loss*.csv
 /logs_and_stats/
 *.pickle
 *.numbers
+*.csv
