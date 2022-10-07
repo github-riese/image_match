@@ -41,9 +41,7 @@ class PlottingCallback(Callback):
         self._display.show_images(bamm, int(math.ceil(bamm.shape[0] / 6)), losses=(logs['loss'], logs['val_loss']))
         self._display.save(f"snapshots/image_ep_{epoch + 1:03d}_{logs['loss']:.4f}.png")
         self.model.optimizer.epoch = epoch
-        self.model.encoder.trainable = epoch % 2 == 0
-        self.model.decoder.trainable = epoch % 2 == 1
-        # self.model.compile(optimizer=self.model.optimizer, loss=self.model.loss, metrics=self.model.metrics)
+
         if epoch % 5 == 4:
             self.model.save(f"{self._model_filename}/theModel")
             print("model saved.")
@@ -119,25 +117,28 @@ def generate_default_view(args: list):
     callback = PlottingCallback(display, validate, expect, losses, model_filename)
 
     epochs_done = config['initial_epoch']
-    model = ensure_model(model_filename, latent_size=1680, input_shape=(None, 64, 64, 3))
+    model = ensure_model(model_filename, latent_size=2048, input_shape=(None, 64, 64, 3))
 
-    batch_size = 128
-    beta_1 = .56
+    # 1 - 1000: batch=256, lr = 6e-4, b1=.98, b2=.75 steps_per_epoch=62
+    # 1001 - 3000: batch=256, lr = 6e-4, b1=.98, b2=.75 steps_per_epoch=62
+    batch_size = 256
+    beta_1 = .98
     noise_beta = .38
     lr_dampening = beta_1 ** epochs_done
     noise_dampening = noise_beta ** epochs_done
-    learning_rate = 0.00045 * lr_dampening
+    learning_rate = 0.0006  # * lr_dampening
     gradient_noise = 0.0001 * noise_dampening
     # optimizer = NoisyAdam(strength=gradient_noise, sustain=noise_beta, learning_rate=learning_rate,
     #                      beta_1=beta_1, beta_2=0.4)
     # optimizer = Adam(learning_rate=learning_rate, epsilon=0.1, beta_1=beta_1, beta_2=0.8)
-    optimizer = Nadam(learning_rate=learning_rate, beta_1=beta_1, beta_2=0.8)
+    optimizer = Nadam(learning_rate=learning_rate, beta_1=beta_1, beta_2=0.75)
 
     model.compile(optimizer=optimizer,
                   loss=model.loss,
                   metrics=[accuracy, 'mae'])
+    print(f"Will run epochs {epochs_done + 1:d} to {epochs}...")
     model.fit(x=X, y=Y,
-              steps_per_epoch=int(math.ceil(len(X) / batch_size / 2.78)),
+              steps_per_epoch=int(math.ceil(len(X) / batch_size / 3.39)),  # / 6.78
               batch_size=batch_size,
               shuffle=True,
               epochs=epochs, validation_freq=1, verbose=1,

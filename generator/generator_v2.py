@@ -44,9 +44,9 @@ class Generator(tf.keras.Model):
             def __init__(self):
                 super(Encoder, self).__init__()
                 self._norm = Normalization()
-                self._noise_1 = GaussianNoise(0.1)
-                self._noise_2 = GaussianNoise(0.08)
-                self._noise_3 = GaussianNoise(0.04)
+                self._noise_1 = GaussianNoise(0.2)
+                self._noise_2 = GaussianNoise(0.1)
+                self._noise_3 = GaussianNoise(0.05)
                 self._noise_4 = GaussianNoise(0.01)
 
                 self._bn_1 = BatchNormalization()
@@ -102,28 +102,30 @@ class Generator(tf.keras.Model):
                 return self._pool_5(inputs)
 
         self.encoder = Encoder()
+        # self.encoder.trainable = False
         self._flatten = Flatten()
 
         self._latent = Lambda(self._compute_latent, output_shape=(latent_size,))
         self._latent_mean = Dense(latent_size, name='latent_mean')
         self._latent_log_var = Dense(latent_size, name='latent_log_var')
+        # self._latent_mean.trainable = False
+        # self._latent_log_var.trainable = False
 
         class Decoder(tf.keras.Model):
-            def __init__(self):
+            def __init__(self, latent_size):
                 super(Decoder, self).__init__()
 
-                self._dropout = Dropout(.4)
-                self._dense_1 = Dense(1024)
-                self._dense_2 = Dense(1024)
-                self._reshape = Reshape(target_shape=(1, 1, 1024))
-                self._generate_1 = Conv2DTranspose(512, 2, 2, use_bias=True, activation='leaky_relu',
-                                                   kernel_regularizer=regularizers.l2(0.005))
+                self._reshape = Reshape(target_shape=(1, 1, latent_size))
+                self._generate_0 = Conv2DTranspose(latent_size, 1, 1, activation='leaky_relu',
+                                                   kernel_regularizer=regularizers.l2(0.04))
+                self._generate_1 = Conv2DTranspose(512, 2, 2, activation='leaky_relu',
+                                                   kernel_regularizer=regularizers.l2(0.04))
                 self._generate_2 = Conv2DTranspose(256, 2, 2, use_bias=True, activation='leaky_relu')
                 self._generate_3 = Conv2DTranspose(128, 2, 2, use_bias=True, activation='leaky_relu',
-                                                   kernel_regularizer=regularizers.l2(0.01))
+                                                   kernel_regularizer=regularizers.l2(0.02))
                 self._generate_4 = Conv2DTranspose(96, 2, 1, use_bias=True, activation='leaky_relu', padding='same')
                 self._generate_5 = Conv2DTranspose(96, 2, 2, use_bias=True, activation='leaky_relu',
-                                                   kernel_regularizer=regularizers.l2(0.01))
+                                                   kernel_regularizer=regularizers.l2(0.02))
                 self._generate_6 = Conv2DTranspose(72, 2, 1, use_bias=True, activation='leaky_relu', padding='same',
                                                    kernel_regularizer=regularizers.l2())
                 self._generate_7 = Conv2DTranspose(64, 2, 2, use_bias=True, activation='leaky_relu',
@@ -133,11 +135,9 @@ class Generator(tf.keras.Model):
                 self._output = Conv2DTranspose(3, 2, 2, use_bias=True, activation='sigmoid')
 
             def call(self, inputs, training=None, mask=None):
-                inputs = self._dense_1(inputs)
-                if training:
-                    inputs = self._dropout(inputs)
-                inputs = self._dense_2(inputs)
-                inputs = self._reshape(inputs)  # 1x1x1024
+
+                inputs = self._reshape(inputs)  # 1x1xlatent
+                inputs = self._generate_0(inputs)  # 1x1xlatent
                 inputs = self._generate_1(inputs)  # 2x2x512
                 inputs = self._generate_2(inputs)  # 4x4x256
 
@@ -151,7 +151,8 @@ class Generator(tf.keras.Model):
                 inputs = self._generate_8(inputs)  # 32x32x48
                 return self._output(inputs)  # 64x64x3
 
-        self.decoder = Decoder()
+        self.decoder = Decoder(latent_size)
+        #  self.decoder.trainable = False
         self.encoder.build(input_shape=input_shape)
         self._latent.build(input_shape=input_shape)
         self.decoder.build(input_shape=(None, latent_size))
@@ -209,7 +210,7 @@ def accuracy(y_true, y_pred):
 
 
 if __name__ == '__main__':
-    latent_size = 1600
+    latent_size = 2048
     input_shape = (None, 64, 64, 3)
     model = Generator(latent_size=latent_size, input_shape=input_shape)
     model.build(input_shape=input_shape)
